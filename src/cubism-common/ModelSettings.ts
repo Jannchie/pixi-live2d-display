@@ -1,5 +1,5 @@
 import { folderName } from "@/utils";
-import { utils } from "@pixi/core";
+// utils.url.resolve is deprecated, using native URL constructor instead
 import type { JSONObject } from "../types/helpers";
 
 /**
@@ -70,8 +70,8 @@ export abstract class ModelSettings {
      * @return Resolved path.
      */
     resolveURL(path: string): string {
-        // FIXME: deprecated API
-        return utils.url.resolve(this.url, path);
+        // Using native URL constructor instead of deprecated utils.url.resolve
+        return new URL(path, this.url).href;
     }
 
     /**

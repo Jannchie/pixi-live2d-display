@@ -1,8 +1,6 @@
 import "./load-cores";
 
-import { Container } from "@pixi/display";
-import "@pixi/events";
-import "@pixi/extract";
+import { Container } from "pixi.js";
 import { cloneDeep } from "lodash-es";
 import { afterEach, beforeEach, vi } from "vitest";
 import { config } from "../src/config";

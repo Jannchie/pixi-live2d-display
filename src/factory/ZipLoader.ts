@@ -3,7 +3,7 @@ import type { Live2DFactoryContext } from "@/factory/Live2DFactory";
 import type { Live2DFactory } from "@/factory/Live2DFactory";
 import { Live2DLoader } from "@/factory/Live2DLoader";
 import type { Middleware } from "@/utils/middleware";
-import { utils } from "@pixi/core";
+// utils.url.resolve is deprecated, using native URL constructor instead
 import type { ExtendedFileList } from "./FileLoader";
 
 type ZipReader = any;
@@ -100,8 +100,8 @@ export class ZipLoader {
 
         // only consume the files defined in settings
         for (const definedFile of settings.getDefinedFiles()) {
-            // FIXME: deprecated API
-            const actualPath = decodeURI(utils.url.resolve(settings.url, definedFile));
+            // Using native URL constructor instead of deprecated utils.url.resolve
+            const actualPath = decodeURI(new URL(definedFile, settings.url).href);
 
             if (filePaths.includes(actualPath)) {
                 requiredFilePaths.push(actualPath);

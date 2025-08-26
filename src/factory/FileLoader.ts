@@ -2,7 +2,7 @@ import type { InternalModel, ModelSettings } from "@/cubism-common";
 import type { Live2DFactoryContext } from "@/factory";
 import { Live2DFactory } from "@/factory";
 import type { Middleware } from "@/utils/middleware";
-import { utils } from "@pixi/core";
+// utils.url.resolve is deprecated, using native URL constructor instead
 
 declare global {
     interface File {
@@ -115,8 +115,8 @@ export class FileLoader {
 
         // only consume the files defined in settings
         for (const definedFile of settings.getDefinedFiles()) {
-            // FIXME: deprecated API
-            const actualPath = decodeURI(utils.url.resolve(settings.url, definedFile));
+            // Using native URL constructor instead of deprecated utils.url.resolve
+            const actualPath = decodeURI(new URL(definedFile, settings.url).href);
 
             const actualFile = files.find((file) => file.webkitRelativePath === actualPath);
 

@@ -95,7 +95,7 @@ export async function addAllModels(app: Application, options?: Parameters<typeof
         ),
     );
     models.forEach((model) => {
-        model.scale.set(app.view.width / model.width);
+        model.scale.set(app.canvas.width / model.width);
         model.update(1);
         app.stage.addChild(model);
     });
