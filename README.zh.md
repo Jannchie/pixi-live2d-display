@@ -4,36 +4,42 @@
 ![Cubism version](https://img.shields.io/badge/Cubism-2/3/4-ff69b4?style=flat-square)
 ![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/guansss/pixi-live2d-display/test.yml?style=flat-square)
 
-为 [PixiJS](https://github.com/pixijs/pixi.js) v6 提供的 Live2D 插件
+为 [PixiJS](https://github.com/pixijs/pixi.js) v8 提供的 Live2D 插件
 
 此项目旨在成为 web 平台上的通用 Live2D 框架。由于 Live2D 的官方框架非常复杂且不可靠，这个项目已将其重写以提供统一且简单的 API，使你可以从较高的层次来控制 Live2D 模型而无需了解其内部的工作原理
 
+## 维护者
+
+此处由 [Jannchie](mailto:jannchie@gmail.com) 维护。
+
+最初由 [guansss](https://github.com/guansss) 创建。感谢原作者的基础工作。
+
 #### 特性
 
--   支持所有版本的 Live2D 模型
--   支持 PIXI.RenderTexture 和 PIXI.Filter
--   Pixi 风格的变换 API：position, scale, rotation, skew, anchor
--   自动交互：鼠标跟踪, 点击命中检测
--   比官方框架更好的动作预约逻辑
--   从上传的文件或 zip 文件中加载 (实验性功能)
--   完善的类型定义 - 我们都喜欢类型！
+- 支持所有版本的 Live2D 模型
+- 支持 PIXI.RenderTexture 和 PIXI.Filter
+- Pixi 风格的变换 API：position, scale, rotation, skew, anchor
+- 自动交互：鼠标跟踪, 点击命中检测
+- 比官方框架更好的动作预约逻辑
+- 从上传的文件或 zip 文件中加载 (实验性功能)
+- 完善的类型定义 - 我们都喜欢类型！
 
 #### 要求
 
--   PixiJS：>6
--   浏览器：WebGL， ES6
+- PixiJS：8.x
+- 浏览器：WebGL， ES6
 
 #### 示例
 
--   [基础示例](https://codepen.io/guansss/pen/oNzoNoz/left?editors=1010)
--   [交互示例](https://codepen.io/guansss/pen/KKgXBOP/left?editors=0010)
--   [渲染纹理与滤镜示例](https://codepen.io/guansss/pen/qBaMNQV/left?editors=1010)
--   [Live2D Viewer Online](https://guansss.github.io/live2d-viewer-web/)
+- [基础示例](https://codepen.io/guansss/pen/oNzoNoz/left?editors=1010)
+- [交互示例](https://codepen.io/guansss/pen/KKgXBOP/left?editors=0010)
+- [渲染纹理与滤镜示例](https://codepen.io/guansss/pen/qBaMNQV/left?editors=1010)
+- [Live2D Viewer Online](https://guansss.github.io/live2d-viewer-web/)
 
 #### 文档
 
--   [文档](https://guansss.github.io/pixi-live2d-display)（暂无中文翻译）
--   [API 文档](https://guansss.github.io/pixi-live2d-display/api/index.html)
+- [文档](https://guansss.github.io/pixi-live2d-display)（暂无中文翻译）
+- [API 文档](https://guansss.github.io/pixi-live2d-display/api/index.html)
 
 ## Cubism
 
@@ -63,9 +69,9 @@ Cubism 2.1 需要加载 `live2d.min.js`，[从 2019/9/4 起](https://help.live2d
 
 为了更明确一点，这里列出使用这些文件的方法：
 
--   使用 `cubism2.js`+`live2d.min.js` 以支持 Cubism 2.1 模型
--   使用 `cubism4.js`+`live2dcubismcore.min.js` 以支持 Cubism 3 和 Cubism 4 模型
--   使用 `index.js`+`live2d.min.js`+`live2dcubismcore.min.js` 以支持所有版本的模型
+- 使用 `cubism2.js`+`live2d.min.js` 以支持 Cubism 2.1 模型
+- 使用 `cubism4.js`+`live2dcubismcore.min.js` 以支持 Cubism 3 和 Cubism 4 模型
+- 使用 `index.js`+`live2d.min.js`+`live2dcubismcore.min.js` 以支持所有版本的模型
 
 ## 安装
 

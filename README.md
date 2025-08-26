@@ -6,11 +6,17 @@
 
 English | [中文](README.zh.md)
 
-Live2D integration for [PixiJS](https://github.com/pixijs/pixi.js) v6.
+Live2D integration for [PixiJS](https://github.com/pixijs/pixi.js) v8.
 
 This project aims to be a universal Live2D framework on the web platform. While the official Live2D framework is just
 complex and problematic, this project has rewritten it to unify and simplify the APIs, which allows you to control the
 Live2D models on a high level without the need to learn how the internal system works.
+
+## Maintainer
+
+This repo maintained by [Jannchie](mailto:jannchie@gmail.com).
+
+Originally created by [guansss](https://github.com/guansss). Credit to the original author for the foundational work.
 
 #### Features
 
@@ -24,7 +30,7 @@ Live2D models on a high level without the need to learn how the internal system 
 
 #### Requirements
 
-- PixiJS: 6.x
+- PixiJS: 8.x
 - Cubism core: 2.1 or 4
 - Browser: WebGL, ES6
 
