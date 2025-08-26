@@ -16,12 +16,13 @@ async function main() {
     
     // Make app globally accessible for Live2D renderer
     (window as any).app = app;
-
+    
     try {
         // Load Live2D model
         const model = await Live2DModel.from(modelURL, {
             ticker: Ticker.shared,
         });
+        (window as any).model = model
         
         // Scale and position model
         const scale = Math.min(window.innerWidth / model.internalModel.width, 

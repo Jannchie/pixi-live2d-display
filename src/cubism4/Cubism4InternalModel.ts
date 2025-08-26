@@ -11,6 +11,8 @@ import {
     ParamBreath,
     ParamEyeBallX,
     ParamEyeBallY,
+    ParamEyeLOpen,
+    ParamEyeROpen,
 } from "@cubism/cubismdefaultparameterid";
 import { BreathParameterData, CubismBreath } from "@cubism/effect/cubismbreath";
 import { CubismEyeBlink } from "@cubism/effect/cubismeyeblink";
@@ -80,10 +82,10 @@ export class Cubism4InternalModel extends InternalModel {
     protected init() {
         super.init();
 
-        if (this.settings.getEyeBlinkParameters()?.length) {
-            this.eyeBlink = CubismEyeBlink.create(this.settings);
-        }
-
+        this.eyeBlink = CubismEyeBlink.create(this.settings);
+        this.eyeBlink?.setBlinkingSetting(0.1, 0.1, 0.2);
+        this.eyeBlink?.setBlinkingInterval(5);
+        this.eyeBlink?.setParameterIds([ParamEyeROpen, ParamEyeLOpen]);
         this.breath.setParameters([
             new BreathParameterData(this.idParamAngleX, 0.0, 15.0, 6.5345, 0.5),
             new BreathParameterData(this.idParamAngleY, 0.0, 8.0, 3.5345, 0.5),
@@ -250,6 +252,7 @@ export class Cubism4InternalModel extends InternalModel {
 
     updateNaturalMovements(dt: DOMHighResTimeStamp, now: DOMHighResTimeStamp) {
         this.breath?.updateParameters(this.coreModel, dt / 1000);
+        this.eyeBlink?.updateParameters(this.coreModel, dt / 1000);
     }
 
     draw(gl: WebGLRenderingContext): void {
