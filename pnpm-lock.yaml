@@ -22,7 +22,7 @@ importers:
         version: 8.41.0(eslint@9.34.0)(typescript@5.9.2)
       '@vitest/browser':
         specifier: ^3.2.4
-        version: 3.2.4(vite@7.1.3(@types/node@24.3.0))(vitest@3.2.4)(webdriverio@9.19.2(puppeteer-core@21.11.0))
+        version: 3.2.4(vite@7.1.3(@types/node@24.3.0)(terser@5.43.1))(vitest@3.2.4)(webdriverio@9.19.2(puppeteer-core@21.11.0))
       birpc:
         specifier: ^2.5.0
         version: 2.5.0
@@ -65,6 +65,9 @@ importers:
       rimraf:
         specifier: ^6.0.1
         version: 6.0.1
+      terser:
+        specifier: ^5.43.1
+        version: 5.43.1
       type-fest:
         specifier: ^4.41.0
         version: 4.41.0
@@ -73,13 +76,13 @@ importers:
         version: 5.9.2
       vite:
         specifier: ^7.1.3
-        version: 7.1.3(@types/node@24.3.0)
+        version: 7.1.3(@types/node@24.3.0)(terser@5.43.1)
       vite-plugin-node-polyfills:
         specifier: ^0.24.0
-        version: 0.24.0(rollup@4.48.1)(vite@7.1.3(@types/node@24.3.0))
+        version: 0.24.0(rollup@4.48.1)(vite@7.1.3(@types/node@24.3.0)(terser@5.43.1))
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@24.3.0)(@vitest/browser@3.2.4)
+        version: 3.2.4(@types/node@24.3.0)(@vitest/browser@3.2.4)(terser@5.43.1)
       webdriverio:
         specifier: ^9.19.2
         version: 9.19.2(puppeteer-core@21.11.0)
@@ -324,8 +327,21 @@ packages:
     resolution: {integrity: sha512-O8jcjabXaleOG9DQ0+ARXWZBTfnP4WNAqzuiJK7ll44AmxGKv/J2M4TPjxjY3znBCfvBXFzucm1twdyFybFqEA==}
     engines: {node: '>=12'}
 
+  '@jridgewell/gen-mapping@0.3.13':
+    resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
+
+  '@jridgewell/resolve-uri@3.1.2':
+    resolution: {integrity: sha512-bRISgCIjP20/tbWSPWMEi54QVPRZExkuD9lJL+UIxUKtwVJA8wW1Trb1jMs1RFXo1CBTNZ/5hpC9QvmKWdopKw==}
+    engines: {node: '>=6.0.0'}
+
+  '@jridgewell/source-map@0.3.11':
+    resolution: {integrity: sha512-ZMp1V8ZFcPG5dIWnQLr3NSI1MiCU7UETdS/A0G8V/XWHvJv3ZsFqutJn1Y5RPmAPX6F3BiE397OqveU/9NCuIA==}
+
   '@jridgewell/sourcemap-codec@1.5.5':
     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
+
+  '@jridgewell/trace-mapping@0.3.30':
+    resolution: {integrity: sha512-GQ7Nw5G2lTu/BtHTKfXhKHok2WGetd4XYcVKGx00SjAk8GMwgJM3zr6zORiPGuOE+/vkc90KtTosSSvaCjKb2Q==}
 
   '@nodelib/fs.scandir@2.1.5':
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
@@ -861,6 +877,9 @@ packages:
     resolution: {integrity: sha512-Db1SbgBS/fg/392AblrMJk97KggmvYhr4pB5ZIMTWtaivCPMWLkmb7m21cJvpvgK+J3nsU2CmmixNBZx4vFj/w==}
     engines: {node: '>=8.0.0'}
 
+  buffer-from@1.1.2:
+    resolution: {integrity: sha512-E+XQCRwSbaaiChtv6k6Dwgc+bx+Bs6vuKJHHl5kox/BaKbhiXzqQOwK4cO22yElGp2OCmjwVhT3HmxgyPGnJfQ==}
+
   buffer-xor@1.0.3:
     resolution: {integrity: sha512-571s0T7nZWK6vB67HI5dyUF7wXiNcfaPPPTl6zYCNApANjIvYJTg7hlud/+cJpdAhS7dVzqMLmfhfHR3rAcOjQ==}
 
@@ -939,6 +958,9 @@ packages:
   commander@13.1.0:
     resolution: {integrity: sha512-/rFeCpNJQbhSZjGVwO9RFV3xPqbnERS8MmIQzCtD/zl6gpJuV/bMLuN92oG3F7d8oDEHHRrujSXNUr8fpjntKw==}
     engines: {node: '>=18'}
+
+  commander@2.20.3:
+    resolution: {integrity: sha512-GpVkmM8vF2vQUkj2LvZmD35JxeJOLCwJ9cUkugyk2nuhbv3+mJvpLYYt+0+USMxE+oj+ey/lJEnhZw75x/OMcQ==}
 
   commander@9.5.0:
     resolution: {integrity: sha512-KRs7WVDKg86PWiuAqhDrAQnTXZKraVcCc6vFdL14qrZ/DcWwuRo7VoiYXalXO7S5GKpqYiVEwCbgFDfxNHKJBQ==}
@@ -2256,6 +2278,9 @@ packages:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
     engines: {node: '>=0.10.0'}
 
+  source-map-support@0.5.21:
+    resolution: {integrity: sha512-uBHU3L3czsIyYXKX88fdrGovxdSCoTGDRZ6SYXtSRxLZUzHg5P/66Ht6uoUlHu9EZod+inXhKo3qQgwXUT/y1w==}
+
   source-map@0.6.1:
     resolution: {integrity: sha512-UjgapumWlbMhkBgzT7Ykc5YXUT46F0iKu8SGXq0bcwP5dz/h0Plj6enJqjz1Zbq2l5WaqYnrVbwWOWMyF3F47g==}
     engines: {node: '>=0.10.0'}
@@ -2341,6 +2366,11 @@ packages:
 
   tar-stream@3.1.7:
     resolution: {integrity: sha512-qJj60CXt7IU1Ffyc3NJMjh6EkuCFej46zUqJ4J7pqYlThyd9bO0XBTmcOIhSzZJVWfsLks0+nle/j538YAW9RQ==}
+
+  terser@5.43.1:
+    resolution: {integrity: sha512-+6erLbBm0+LROX2sPXlUYx/ux5PyE9K/a92Wrt6oA+WDAoFTdpHE5tCYCI5PNzq2y8df4rA+QgHLJuR4jNymsg==}
+    engines: {node: '>=10'}
+    hasBin: true
 
   text-decoder@1.2.3:
     resolution: {integrity: sha512-3/o9z3X0X0fTupwsYvR03pJ/DjWuqqrfwBgTQzdWDiQSm9KitAyz/9WqsT2JQW7KV2m+bC2ol/zqpW37NHxLaA==}
@@ -2842,7 +2872,24 @@ snapshots:
       wrap-ansi: 8.1.0
       wrap-ansi-cjs: wrap-ansi@7.0.0
 
+  '@jridgewell/gen-mapping@0.3.13':
+    dependencies:
+      '@jridgewell/sourcemap-codec': 1.5.5
+      '@jridgewell/trace-mapping': 0.3.30
+
+  '@jridgewell/resolve-uri@3.1.2': {}
+
+  '@jridgewell/source-map@0.3.11':
+    dependencies:
+      '@jridgewell/gen-mapping': 0.3.13
+      '@jridgewell/trace-mapping': 0.3.30
+
   '@jridgewell/sourcemap-codec@1.5.5': {}
+
+  '@jridgewell/trace-mapping@0.3.30':
+    dependencies:
+      '@jridgewell/resolve-uri': 3.1.2
+      '@jridgewell/sourcemap-codec': 1.5.5
 
   '@nodelib/fs.scandir@2.1.5':
     dependencies:
@@ -3124,16 +3171,16 @@ snapshots:
       '@typescript-eslint/types': 8.41.0
       eslint-visitor-keys: 4.2.1
 
-  '@vitest/browser@3.2.4(vite@7.1.3(@types/node@24.3.0))(vitest@3.2.4)(webdriverio@9.19.2(puppeteer-core@21.11.0))':
+  '@vitest/browser@3.2.4(vite@7.1.3(@types/node@24.3.0)(terser@5.43.1))(vitest@3.2.4)(webdriverio@9.19.2(puppeteer-core@21.11.0))':
     dependencies:
       '@testing-library/dom': 10.4.1
       '@testing-library/user-event': 14.6.1(@testing-library/dom@10.4.1)
-      '@vitest/mocker': 3.2.4(vite@7.1.3(@types/node@24.3.0))
+      '@vitest/mocker': 3.2.4(vite@7.1.3(@types/node@24.3.0)(terser@5.43.1))
       '@vitest/utils': 3.2.4
       magic-string: 0.30.18
       sirv: 3.0.1
       tinyrainbow: 2.0.0
-      vitest: 3.2.4(@types/node@24.3.0)(@vitest/browser@3.2.4)
+      vitest: 3.2.4(@types/node@24.3.0)(@vitest/browser@3.2.4)(terser@5.43.1)
       ws: 8.18.3
     optionalDependencies:
       webdriverio: 9.19.2(puppeteer-core@21.11.0)
@@ -3151,13 +3198,13 @@ snapshots:
       chai: 5.3.3
       tinyrainbow: 2.0.0
 
-  '@vitest/mocker@3.2.4(vite@7.1.3(@types/node@24.3.0))':
+  '@vitest/mocker@3.2.4(vite@7.1.3(@types/node@24.3.0)(terser@5.43.1))':
     dependencies:
       '@vitest/spy': 3.2.4
       estree-walker: 3.0.3
       magic-string: 0.30.18
     optionalDependencies:
-      vite: 7.1.3(@types/node@24.3.0)
+      vite: 7.1.3(@types/node@24.3.0)(terser@5.43.1)
 
   '@vitest/pretty-format@3.2.4':
     dependencies:
@@ -3437,6 +3484,8 @@ snapshots:
 
   buffer-crc32@1.0.0: {}
 
+  buffer-from@1.1.2: {}
+
   buffer-xor@1.0.3: {}
 
   buffer@5.7.1:
@@ -3537,6 +3586,8 @@ snapshots:
   color-name@1.1.4: {}
 
   commander@13.1.0: {}
+
+  commander@2.20.3: {}
 
   commander@9.5.0: {}
 
@@ -4743,7 +4794,7 @@ snapshots:
   proxy-agent@6.3.1:
     dependencies:
       agent-base: 7.1.4
-      debug: 4.3.4
+      debug: 4.4.1
       http-proxy-agent: 7.0.2
       https-proxy-agent: 7.0.6
       lru-cache: 7.18.3
@@ -5022,6 +5073,11 @@ snapshots:
 
   source-map-js@1.2.1: {}
 
+  source-map-support@0.5.21:
+    dependencies:
+      buffer-from: 1.1.2
+      source-map: 0.6.1
+
   source-map@0.6.1: {}
 
   spacetrim@0.11.59: {}
@@ -5125,6 +5181,13 @@ snapshots:
       b4a: 1.6.7
       fast-fifo: 1.3.2
       streamx: 2.22.1
+
+  terser@5.43.1:
+    dependencies:
+      '@jridgewell/source-map': 0.3.11
+      acorn: 8.15.0
+      commander: 2.20.3
+      source-map-support: 0.5.21
 
   text-decoder@1.2.3:
     dependencies:
@@ -5240,13 +5303,13 @@ snapshots:
       is-typed-array: 1.1.15
       which-typed-array: 1.1.19
 
-  vite-node@3.2.4(@types/node@24.3.0):
+  vite-node@3.2.4(@types/node@24.3.0)(terser@5.43.1):
     dependencies:
       cac: 6.7.14
       debug: 4.4.1
       es-module-lexer: 1.7.0
       pathe: 2.0.3
-      vite: 7.1.3(@types/node@24.3.0)
+      vite: 7.1.3(@types/node@24.3.0)(terser@5.43.1)
     transitivePeerDependencies:
       - '@types/node'
       - jiti
@@ -5261,15 +5324,15 @@ snapshots:
       - tsx
       - yaml
 
-  vite-plugin-node-polyfills@0.24.0(rollup@4.48.1)(vite@7.1.3(@types/node@24.3.0)):
+  vite-plugin-node-polyfills@0.24.0(rollup@4.48.1)(vite@7.1.3(@types/node@24.3.0)(terser@5.43.1)):
     dependencies:
       '@rollup/plugin-inject': 5.0.5(rollup@4.48.1)
       node-stdlib-browser: 1.3.1
-      vite: 7.1.3(@types/node@24.3.0)
+      vite: 7.1.3(@types/node@24.3.0)(terser@5.43.1)
     transitivePeerDependencies:
       - rollup
 
-  vite@7.1.3(@types/node@24.3.0):
+  vite@7.1.3(@types/node@24.3.0)(terser@5.43.1):
     dependencies:
       esbuild: 0.25.9
       fdir: 6.5.0(picomatch@4.0.3)
@@ -5280,12 +5343,13 @@ snapshots:
     optionalDependencies:
       '@types/node': 24.3.0
       fsevents: 2.3.3
+      terser: 5.43.1
 
-  vitest@3.2.4(@types/node@24.3.0)(@vitest/browser@3.2.4):
+  vitest@3.2.4(@types/node@24.3.0)(@vitest/browser@3.2.4)(terser@5.43.1):
     dependencies:
       '@types/chai': 5.2.2
       '@vitest/expect': 3.2.4
-      '@vitest/mocker': 3.2.4(vite@7.1.3(@types/node@24.3.0))
+      '@vitest/mocker': 3.2.4(vite@7.1.3(@types/node@24.3.0)(terser@5.43.1))
       '@vitest/pretty-format': 3.2.4
       '@vitest/runner': 3.2.4
       '@vitest/snapshot': 3.2.4
@@ -5303,12 +5367,12 @@ snapshots:
       tinyglobby: 0.2.14
       tinypool: 1.1.1
       tinyrainbow: 2.0.0
-      vite: 7.1.3(@types/node@24.3.0)
-      vite-node: 3.2.4(@types/node@24.3.0)
+      vite: 7.1.3(@types/node@24.3.0)(terser@5.43.1)
+      vite-node: 3.2.4(@types/node@24.3.0)(terser@5.43.1)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 24.3.0
-      '@vitest/browser': 3.2.4(vite@7.1.3(@types/node@24.3.0))(vitest@3.2.4)(webdriverio@9.19.2(puppeteer-core@21.11.0))
+      '@vitest/browser': 3.2.4(vite@7.1.3(@types/node@24.3.0)(terser@5.43.1))(vitest@3.2.4)(webdriverio@9.19.2(puppeteer-core@21.11.0))
     transitivePeerDependencies:
       - jiti
       - less
