@@ -24,15 +24,15 @@ export class HitAreaFrames extends Graphics {
 
     init() {
         const internalModel = (this.parent as Live2DModel).internalModel;
+        if (!internalModel) return;
 
         const textStyle = new TextStyle({
             fontSize: 24,
             fill: "#ffffff",
-            stroke: "#000000",
-            strokeThickness: 4,
+            stroke: { color: "#000000", width: 4 },
         });
 
-        this.texts = Object.keys(internalModel.hitAreas).map((hitAreaName) => {
+        this.texts = Object.keys(internalModel?.hitAreas || {}).map((hitAreaName) => {
             const text = new Text(hitAreaName, textStyle);
 
             text.visible = false;
@@ -54,19 +54,18 @@ export class HitAreaFrames extends Graphics {
     /** @override */
     protected _render(renderer: Renderer): void {
         const internalModel = (this.parent as Live2DModel).internalModel;
+        if (!internalModel) return;
 
         // extract scale from the transform matrix, and invert it to ease following calculation
         // https://math.stackexchange.com/a/13165
         const scale =
             1 /
-            Math.sqrt(this.transform.worldTransform.a ** 2 + this.transform.worldTransform.b ** 2);
+            Math.sqrt(this.worldTransform.a ** 2 + this.worldTransform.b ** 2);
 
         this.texts.forEach((text) => {
-            this.lineStyle({
-                width: this.strokeWidth * scale,
-                color: text.visible ? this.activeColor : this.normalColor,
-            });
+            this.stroke({ width: this.strokeWidth * scale, color: text.visible ? this.activeColor : this.normalColor });
 
+            if (!internalModel?.hitAreas[text.text]) return;
             const bounds = internalModel.getDrawableBounds(
                 internalModel.hitAreas[text.text]!.index,
                 tempBounds,
@@ -78,14 +77,14 @@ export class HitAreaFrames extends Graphics {
             bounds.width = bounds.width * transform.a;
             bounds.height = bounds.height * transform.d;
 
-            this.drawRect(bounds.x, bounds.y, bounds.width, bounds.height);
+            this.rect(bounds.x, bounds.y, bounds.width, bounds.height);
 
             text.x = bounds.x + this.strokeWidth * scale;
             text.y = bounds.y + this.strokeWidth * scale;
             text.scale.set(scale);
         });
 
-        super._render(renderer);
+        // super.render(renderer);
 
         this.clear();
     }

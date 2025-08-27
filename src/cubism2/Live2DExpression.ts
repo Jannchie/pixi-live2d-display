@@ -1,14 +1,17 @@
+/// <reference path="../../core/live2d.d.ts" />
 import { config } from "@/config";
 import type { Cubism2Spec } from "../types/Cubism2Spec";
 
-export class Live2DExpression extends AMotion {
+export class Live2DExpression {
     readonly params: NonNullable<Cubism2Spec.ExpressionJSON["params"]> = [];
+    
+    private fadeInTime = 0;
+    private fadeOutTime = 0;
 
     constructor(json: Cubism2Spec.ExpressionJSON) {
-        super();
 
-        this.setFadeIn(json.fade_in! > 0 ? json.fade_in! : config.expressionFadingDuration);
-        this.setFadeOut(json.fade_out! > 0 ? json.fade_out! : config.expressionFadingDuration);
+        this.fadeInTime = json.fade_in! > 0 ? json.fade_in! : config.expressionFadingDuration;
+        this.fadeOutTime = json.fade_out! > 0 ? json.fade_out! : config.expressionFadingDuration;
 
         if (Array.isArray(json.params)) {
             json.params.forEach((param) => {
@@ -29,6 +32,18 @@ export class Live2DExpression extends AMotion {
                 });
             });
         }
+    }
+
+    setFadeIn(time: number): void {
+        this.fadeInTime = time;
+    }
+
+    setFadeOut(time: number): void {
+        this.fadeOutTime = time;
+    }
+
+    updateParam(model: Live2DModelWebGL, entry: unknown): void {
+        this.updateParamExe(model, 0, 1, entry);
     }
 
     /** @override */
