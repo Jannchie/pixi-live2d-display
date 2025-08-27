@@ -70,8 +70,11 @@ export abstract class ModelSettings {
      * @return Resolved path.
      */
     resolveURL(path: string): string {
-        // Using native URL constructor instead of deprecated utils.url.resolve
-        return new URL(path, this.url).href;
+        // If this.url is a relative path, resolve path relative to its directory
+        const base = this.url.endsWith('/')
+        ? this.url
+        : this.url.substring(0, this.url.lastIndexOf('/') + 1);
+        return base + path;
     }
 
     /**

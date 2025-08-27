@@ -3,7 +3,7 @@ import { Live2DModel } from "../src";
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 const modelURL =
-    "https://cdn.jsdelivr.net/gh/Eikanya/Live2d-model/Live2D/Senko_Normals/senko.model3.json";
+    "./models/06-v2.1024/06-v2.model3.json";
 
 async function main() {
     // Create and initialize PixiJS application
