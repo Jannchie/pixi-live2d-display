@@ -70,6 +70,7 @@ export default defineConfig(({ command, mode }) => {
             // see https://github.com/vitest-dev/vitest/issues/4535
             isTest && nodePolyfills(),
 
+            // Only load test RPC plugin in test mode to avoid ws dependency in dev
             isTest && testRpcPlugin(),
             isTest && {
                 name: "load-cubism-core",

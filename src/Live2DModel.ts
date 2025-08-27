@@ -11,6 +11,13 @@ import { logger } from "./utils";
 
 export interface Live2DModelOptions extends MotionManagerOptions, AutomatorOptions {}
 
+/**
+ * Interface for WebGL context with PixiJS UID extension
+ */
+interface WebGLContextWithUID extends WebGL2RenderingContext {
+    _pixiContextUID?: number;
+}
+
 const tempPoint = new Point();
 const tempMatrix = new Matrix();
 
@@ -90,9 +97,9 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
     tag = "Live2DModel(uninitialized)";
 
     /**
-     * The internal model. Though typed as non-nullable, it'll be undefined until the "ready" event is emitted.
+     * The internal model. Will be undefined until the "ready" event is emitted.
      */
-    internalModel!: IM;
+    internalModel?: IM;
 
     /**
      * Pixi textures.
@@ -112,6 +119,11 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
      * An ID of Gl context that syncs with `renderer.CONTEXT_UID`. Used to check if the GL context has changed.
      */
     protected glContextID = -1;
+
+    /**
+     * Cached renderer reference for type safety
+     */
+    protected renderer?: WebGLRenderer;
 
     /**
      * Elapsed time in milliseconds since created.
@@ -136,23 +148,100 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
         this.once("modelLoaded", () => this.init(options));
     }
 
+    /**
+     * Sets the renderer reference for type safety
+     */
+    setRenderer(renderer: Renderer): void {
+        if (this.isWebGLRenderer(renderer)) {
+            this.renderer = renderer;
+        }
+    }
+
+    /**
+     * Type guard to check if renderer is WebGLRenderer
+     */
+    private isWebGLRenderer(renderer: Renderer): renderer is WebGLRenderer {
+        return 'gl' in renderer && renderer.gl instanceof WebGL2RenderingContext;
+    }
+
     // TODO: rename
     /**
      * A handler of the "modelLoaded" event, invoked when the internal model has been loaded.
      */
     protected init(_options?: Live2DModelOptions) {
+        if (!this.isReady()) {
+            return;
+        }
+        
         this.tag = `Live2DModel(${this.internalModel.settings.name})`;
         
         // Update bounds area now that the internal model is loaded
         this.updateBoundsArea();
-        
+    }
+
+    /**
+     * Checks if the model is ready (internal model is loaded).
+     */
+    isReady(): this is Live2DModel<IM> & { internalModel: IM } {
+        return this.internalModel !== undefined;
+    }
+
+    /**
+     * Checks if the model can render (ready and has textures).
+     */
+    canRender(): boolean {
+        return this.isReady() && this.textures.length > 0;
+    }
+
+    /**
+     * Checks if the renderer is available and valid.
+     */
+    hasValidRenderer(): boolean {
+        return this.renderer !== undefined && this.renderer.gl instanceof WebGL2RenderingContext;
+    }
+
+    /**
+     * Type guard for WebGLTexture
+     */
+    private isWebGLTexture(texture: unknown): texture is WebGLTexture {
+        return texture instanceof WebGLTexture;
+    }
+
+    /**
+     * Extracts WebGLTexture from PixiJS texture with proper type safety
+     */
+    private extractWebGLTexture(renderer: WebGLRenderer, texture: Texture): WebGLTexture | null {
+        if (!renderer.texture || !texture.source) {
+            return null;
+        }
+
+        try {
+            // Get the WebGL source wrapper first
+            const glSource = renderer.texture.getGlSource(texture.source);
+            
+            if (glSource && (glSource as any).texture) {
+                // Extract the actual WebGL texture from the wrapper
+                return (glSource as any).texture;
+            }
+            
+            // Fallback: try the internal _glTextures approach
+            const textureSourceWithGL = texture.source as any;
+            if (textureSourceWithGL?._glTextures) {
+                const contextTextures = textureSourceWithGL._glTextures[this.glContextID];
+                return contextTextures?.texture || contextTextures;
+            }
+        } catch (error) {
+            console.warn('Failed to extract WebGL texture:', error);
+        }
+
+        return null;
     }
 
     /**
      * A callback that observes {@link anchor}, invoked when the anchor's values have been changed.
      */
     protected onAnchorChange(): void {
-        if (this.internalModel) {
+        if (this.isReady()) {
             this.pivot.set(
                 this.anchor.x * this.internalModel.width,
                 this.anchor.y * this.internalModel.height,
@@ -168,6 +257,9 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
      * @return Promise that resolves with true if the motion is successfully started, with false otherwise.
      */
     motion(group: string, index?: number, priority?: MotionPriority): Promise<boolean> {
+        if (!this.isReady()) {
+            return Promise.resolve(false);
+        }
         return index === undefined
             ? this.internalModel.motionManager.startRandomMotion(group, priority)
             : this.internalModel.motionManager.startMotion(group, index, priority);
@@ -179,12 +271,12 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
      * @return Promise that resolves with true if succeeded, with false otherwise.
      */
     expression(id?: number | string): Promise<boolean> {
-        if (this.internalModel.motionManager.expressionManager) {
-            return id === undefined
-                ? this.internalModel.motionManager.expressionManager.setRandomExpression()
-                : this.internalModel.motionManager.expressionManager.setExpression(id);
+        if (!this.isReady() || !this.internalModel.motionManager.expressionManager) {
+            return Promise.resolve(false);
         }
-        return Promise.resolve(false);
+        return id === undefined
+            ? this.internalModel.motionManager.expressionManager.setRandomExpression()
+            : this.internalModel.motionManager.expressionManager.setExpression(id);
     }
 
     /**
@@ -195,6 +287,10 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
      * @param instant - Should the focus position be instantly applied.
      */
     focus(x: number, y: number, instant: boolean = false): void {
+        if (!this.isReady()) {
+            return;
+        }
+        
         tempPoint.x = x;
         tempPoint.y = y;
 
@@ -233,6 +329,10 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
      * @return The names of the *hit* hit areas. Can be empty if none is hit.
      */
     hitTest(x: number, y: number): string[] {
+        if (!this.isReady()) {
+            return [];
+        }
+        
         tempPoint.x = x;
         tempPoint.y = y;
         this.toModelPosition(tempPoint, tempPoint);
@@ -256,8 +356,10 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
         // First convert to local coordinates of this Live2DModel
         const localPosition = this.toLocal(position, undefined, result);
         
-        // Then apply the internal model's local transform
-        this.internalModel.localTransform.applyInverse(localPosition, localPosition);
+        // Then apply the internal model's local transform if model is ready
+        if (this.isReady()) {
+            this.internalModel.localTransform.applyInverse(localPosition, localPosition);
+        }
 
         return localPosition;
     }
@@ -276,7 +378,7 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
      * Updates the boundsArea based on the internal model dimensions
      */
     private updateBoundsArea(): void {
-        if (this.internalModel && this.internalModel.width && this.internalModel.height) {
+        if (this.isReady() && this.internalModel.width && this.internalModel.height) {
             // Set boundsArea with actual model dimensions
             this.boundsArea = new Rectangle(0, 0, this.internalModel.width, this.internalModel.height);
         } else if (!this.boundsArea) {
@@ -285,15 +387,18 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
         }
     }
 
+
     /**
      * Gets a unique ID for the WebGL context
      */
     private _getContextUID(gl: WebGL2RenderingContext): number {
+        const contextWithUID = gl as WebGLContextWithUID;
+        
         // Create a simple UID for the context if it doesn't have one
-        if (!(gl as any)._pixiContextUID) {
-            (gl as any)._pixiContextUID = Date.now() + Math.random();
+        if (!contextWithUID._pixiContextUID) {
+            contextWithUID._pixiContextUID = Date.now() + Math.random();
         }
-        return (gl as any)._pixiContextUID;
+        return contextWithUID._pixiContextUID;
     }
 
     /**
@@ -311,20 +416,29 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
     // In Pixi.js v8, onRender callback doesn't receive renderer parameter
     // We need to access the renderer differently
     private _onRenderCallback(): void {
-        // Access renderer from the global application
-        const app = (globalThis as any).app || (window as any).app;
-        if (!app || !app.renderer) {
-            return;
+        // Try to use cached renderer first, otherwise fall back to global access
+        let webglRenderer = this.renderer;
+        
+        if (!webglRenderer) {
+            // Fallback to global application access
+            const app = (globalThis as any).app || (window as any).app;
+            if (!app?.renderer) {
+                return;
+            }
+            
+            const renderer = app.renderer as Renderer;
+            if (!this.isWebGLRenderer(renderer)) {
+                return;
+            }
+            
+            webglRenderer = renderer;
+            this.renderer = webglRenderer; // Cache for next time
         }
         
-        const renderer = app.renderer as Renderer;
-        
-        // Only render if it's a WebGL renderer, as Live2D doesn't support WebGPU yet
-        if (!(renderer as any).gl) {
+        // Early exit if model cannot render
+        if (!this.canRender()) {
             return;
         }
-        
-        const webglRenderer = renderer as WebGLRenderer;
         
         try {
             // In PixiJS v8, the batch/geometry/shader/state reset methods have been removed
@@ -337,8 +451,10 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
             const contextUID = this._getContextUID(webglRenderer.gl);
             if (this.glContextID !== contextUID) {
                 this.glContextID = contextUID;
-
-                this.internalModel.updateWebGLContext(webglRenderer.gl, this.glContextID);
+                
+                if (this.isReady()){
+                    this.internalModel.updateWebGLContext(webglRenderer.gl, this.glContextID);
+                }
 
                 shouldUpdateTexture = true;
             }
@@ -352,10 +468,11 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
                 }
 
                 // In v8, texture handling is different - no more baseTexture
+                const textureSourceWithGL = texture.source as any;
                 const shouldUpdate = shouldUpdateTexture || 
-                    !(texture.source as any)?._glTextures?.[this.glContextID];
+                    !textureSourceWithGL?._glTextures?.[this.glContextID];
 
-                if (shouldUpdate) {
+                if (shouldUpdate && this.internalModel) {
                     webglRenderer.gl.pixelStorei(
                         WebGLRenderingContext.UNPACK_FLIP_Y_WEBGL,
                         this.internalModel.textureFlipY,
@@ -364,29 +481,15 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
 
                 // bind the WebGLTexture into Live2D core.
                 // In v8, get the actual WebGL texture object
-                let glTexture: WebGLTexture | null = null;
+                const glTexture = this.extractWebGLTexture(webglRenderer, texture);
                 
-                if (webglRenderer.texture && texture.source) {
-                    // Get the WebGL source wrapper first
-                    const glSource = webglRenderer.texture.getGlSource(texture.source);
-                    
-                    if (glSource && (glSource as any).texture) {
-                        // Extract the actual WebGL texture from the wrapper
-                        glTexture = (glSource as any).texture;
-                    } else if ((texture.source as any)?._glTextures) {
-                        // Fallback: try the internal _glTextures approach
-                        const contextTextures = (texture.source as any)._glTextures[this.glContextID];
-                        glTexture = contextTextures?.texture || contextTextures;
-                    }
-                }
-                
-                if (glTexture && glTexture instanceof WebGLTexture) {
+                if (this.isWebGLTexture(glTexture) && this.internalModel) {
                     this.internalModel.bindTexture(i, glTexture);
                 }
 
                 // manually update the GC counter in v8
-                if (renderer.textureGC?.count && texture.source) {
-                    (texture.source as any).touched = renderer.textureGC.count;
+                if (webglRenderer.textureGC?.count && texture.source) {
+                    (texture.source as any).touched = webglRenderer.textureGC.count;
                 }
             }
 
@@ -395,15 +498,18 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
             const viewport = {
                 x: 0,
                 y: 0,
-                width: renderer.width || renderer.screen?.width || 800,
-                height: renderer.height || renderer.screen?.height || 600
+                width: webglRenderer.width || webglRenderer.screen?.width || 800,
+                height: webglRenderer.height || webglRenderer.screen?.height || 600
             };
-            this.internalModel.viewport = [viewport.x, viewport.y, viewport.width, viewport.height];
+            
+            if (this.internalModel) {
+                this.internalModel.viewport = [viewport.x, viewport.y, viewport.width, viewport.height];
 
-            // update only if the time has changed, as the model will possibly be updated once but rendered multiple times
-            if (this.deltaTime) {
-                this.internalModel.update(this.deltaTime, this.elapsedTime);
-                this.deltaTime = 0;
+                // update only if the time has changed, as the model will possibly be updated once but rendered multiple times
+                if (this.deltaTime) {
+                    this.internalModel.update(this.deltaTime, this.elapsedTime);
+                    this.deltaTime = 0;
+                }
             }
 
             // In v8, ensure worldTransform is properly calculated
@@ -424,8 +530,10 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
                 .copyFrom(projectionMatrix)
                 .append(worldTransform);
             
-            this.internalModel.updateTransform(internalTransform);
-            this.internalModel.draw(webglRenderer.gl);
+            if (this.internalModel) {
+                this.internalModel.updateTransform(internalTransform);
+                this.internalModel.draw(webglRenderer.gl);
+            }
             
         } catch (error) {
             console.error("Error in Live2D render callback:", error);
@@ -452,7 +560,10 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
         }
 
         this.automator.destroy();
-        this.internalModel.destroy();
+        
+        if (this.isReady()) {
+            this.internalModel.destroy();
+        }
 
         super.destroy(options);
     }

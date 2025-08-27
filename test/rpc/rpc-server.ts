@@ -1,6 +1,5 @@
 import { createBirpc } from "birpc";
 import type { Plugin } from "vite";
-import { WebSocketServer } from "ws";
 import { TEST_RPC_ENDPOINT } from "../constants";
 import { handleToMatchImageSnapshot } from "./image-snapshot-server";
 
@@ -14,7 +13,8 @@ export type RpcFunctions = typeof rpcFunctions;
 export function testRpcPlugin(): Plugin {
     return {
         name: "test-rpc",
-        configureServer(server) {
+        async configureServer(server) {
+            const { WebSocketServer } = await import("ws");
             const wss = new WebSocketServer({ noServer: true });
 
             server.httpServer?.on("upgrade", (request, socket, head) => {

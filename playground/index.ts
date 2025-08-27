@@ -15,18 +15,17 @@ async function main() {
     });
     
     // Make app globally accessible for Live2D renderer
-    (window as any).app = app;
+    // (window as any).app = app;
     
     try {
         // Load Live2D model
         const model = await Live2DModel.from(modelURL, {
             ticker: Ticker.shared,
         });
-        (window as any).model = model
-        
+        model.setRenderer(app.renderer);
         // Scale and position model
-        const scale = Math.min(window.innerWidth / model.internalModel.width, 
-                              window.innerHeight / model.internalModel.height) * 0.8;
+        const scale = Math.min(window.innerWidth / model.width, 
+                              window.innerHeight / model.height) * 0.8;
         model.scale.set(scale);
         
         // Center the model by setting anchor to center

@@ -1,5 +1,5 @@
 {
-  "name": "pixi-live2d-display",
+  "name": "@jannchie/pixi-live2d-display",
   "version": "v0.5.0-beta",
   "description": "Live2D plugin for PixiJS",
   "main": "dist/index.js",
