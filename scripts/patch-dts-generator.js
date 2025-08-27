@@ -8,7 +8,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const insertionLineNumber = 102;
 const insertionLineIndex = insertionLineNumber - 1;
 
-const dtsGenValidatedVersion = "6.11.0";
+const dtsGenValidatedVersion = "9.5.1";
 
 if (dtsPackageJson.version !== dtsGenValidatedVersion) {
     throw new Error(
