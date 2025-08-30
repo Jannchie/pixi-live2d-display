@@ -205,13 +205,66 @@ function setupLipSyncControls(model: Live2DModel) {
             toggleButton.textContent = 'Stop Lip Sync';
             toggleButton.style.background = '#dc3545';
             
+            // More realistic talking animation
+            let talkingState = 'speaking'; // 'speaking', 'pause', 'breath'
+            let stateTimer = 0;
+            let speechDuration = Math.random() * 2 + 1; // 1-3 seconds
+            let pauseDuration = Math.random() * 0.8 + 0.2; // 0.2-1 second
+            let breathDuration = 0.3; // 0.3 seconds
+            let syllableTimer = 0;
+            let targetValue = 0;
+            let currentValue = 0;
+            
             autoAnimation = setInterval(() => {
-                // Create talking animation pattern
-                const time = Date.now() / 1000;
-                const value = Math.max(0, Math.sin(time * 8) * 0.5 + 0.3 + Math.random() * 0.2);
-                modelWithLipSync.setLipSyncValue(value);
-                slider.value = value.toString();
-                valueDisplay.textContent = value.toFixed(2);
+                const deltaTime = 0.05; // 50ms
+                stateTimer += deltaTime;
+                
+                if (talkingState === 'speaking') {
+                    // High-frequency mouth movement for realistic speech
+                    syllableTimer += deltaTime;
+                    const intensity = 0.7 + Math.random() * 0.3; // Variable intensity
+                    
+                    // Generate rapid mouth movements every 0.05-0.12s (much faster)
+                    if (syllableTimer > (0.05 + Math.random() * 0.07)) {
+                        targetValue = Math.random() < 0.85 ? intensity * (0.3 + Math.random() * 0.7) : 0.05; // More frequent opening
+                        syllableTimer = 0;
+                    }
+                    
+                    // Faster transition for quick speech movements
+                    currentValue += (targetValue - currentValue) * 0.6;
+                    
+                    if (stateTimer > speechDuration) {
+                        talkingState = Math.random() < 0.7 ? 'pause' : 'breath';
+                        stateTimer = 0;
+                        speechDuration = Math.random() * 2.5 + 1; // 1-3.5 seconds
+                        pauseDuration = Math.random() * 0.8 + 0.2; // 0.2-1 second
+                        targetValue = 0;
+                    }
+                } else if (talkingState === 'pause') {
+                    // Mouth gradually closes during pause
+                    currentValue *= 0.95;
+                    
+                    if (stateTimer > pauseDuration) {
+                        talkingState = 'speaking';
+                        stateTimer = 0;
+                        syllableTimer = 0;
+                    }
+                } else if (talkingState === 'breath') {
+                    // Slight mouth opening for breathing
+                    const breathPattern = Math.sin(stateTimer * 6) * 0.1 + 0.15;
+                    currentValue += (breathPattern - currentValue) * 0.1;
+                    
+                    if (stateTimer > breathDuration) {
+                        talkingState = 'speaking';
+                        stateTimer = 0;
+                        syllableTimer = 0;
+                    }
+                }
+                
+                const finalValue = Math.max(0, Math.min(1, currentValue));
+                modelWithLipSync.setLipSyncValue(finalValue);
+                slider.value = finalValue.toString();
+                valueDisplay.textContent = finalValue.toFixed(2);
             }, 50) as any;
             
             autoButton.textContent = 'Stop Auto Animation';
@@ -259,7 +312,7 @@ function setupLipSyncControls(model: Live2DModel) {
                 onFinish: () => {
                     console.log('Speaking finished');
                 },
-                onError: (error: Error) => {
+                onError: (_error: Error) => {
                     console.log('Note: This is a demo button. In real use, provide valid base64 audio data.');
                     // Start a simple demo animation instead
                     modelWithLipSync.startLipSync();
