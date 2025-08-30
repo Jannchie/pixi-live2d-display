@@ -114,6 +114,16 @@ export abstract class InternalModel extends EventEmitter {
     destroyed = false;
 
     /**
+     * Flags whether lip sync is enabled.
+     */
+    lipSyncEnabled = false;
+
+    /**
+     * Current lip sync value (0-1).
+     */
+    lipSyncValue = 0;
+
+    /**
      * Should be called in the constructor of derived class.
      */
     protected init() {
@@ -258,6 +268,22 @@ export abstract class InternalModel extends EventEmitter {
      */
     update(dt: DOMHighResTimeStamp, now: DOMHighResTimeStamp): void {
         this.focusController.update(dt);
+    }
+
+    /**
+     * Sets the lip sync value.
+     * @param value - Lip sync value (0-1).
+     */
+    setLipSyncValue(value: number): void {
+        this.lipSyncValue = Math.max(0, Math.min(1, value));
+    }
+
+    /**
+     * Enables or disables lip sync.
+     * @param enabled - Whether to enable lip sync.
+     */
+    setLipSyncEnabled(enabled: boolean): void {
+        this.lipSyncEnabled = enabled;
     }
 
     /**

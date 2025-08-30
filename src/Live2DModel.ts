@@ -541,6 +541,51 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
     }
 
     /**
+     * Starts lip sync animation.
+     */
+    startLipSync(): void {
+        if (this.isReady()) {
+            this.internalModel.setLipSyncEnabled(true);
+        }
+    }
+
+    /**
+     * Stops lip sync animation.
+     */
+    stopLipSync(): void {
+        if (this.isReady()) {
+            this.internalModel.setLipSyncEnabled(false);
+            this.internalModel.setLipSyncValue(0);
+        }
+    }
+
+    /**
+     * Sets the lip sync value manually.
+     * @param value - Lip sync value (0-1), where 0 is closed mouth and 1 is fully open.
+     */
+    setLipSyncValue(value: number): void {
+        if (this.isReady()) {
+            this.internalModel.setLipSyncValue(value);
+        }
+    }
+
+    /**
+     * Gets current lip sync enabled state.
+     * @return Whether lip sync is enabled.
+     */
+    isLipSyncEnabled(): boolean {
+        return this.isReady() ? this.internalModel.lipSyncEnabled : false;
+    }
+
+    /**
+     * Gets current lip sync value.
+     * @return Current lip sync value (0-1).
+     */
+    getLipSyncValue(): number {
+        return this.isReady() ? this.internalModel.lipSyncValue : 0;
+    }
+
+    /**
      * Destroys the model and all related resources. This takes the same options and also
      * behaves the same as `PIXI.Container#destroy`.
      * @param options - Options parameter. A boolean will act as if all options

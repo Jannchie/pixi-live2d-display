@@ -220,14 +220,12 @@ export class Cubism4InternalModel extends InternalModel {
         // revert the timestamps to be milliseconds
         this.updateNaturalMovements(dt * 1000, now * 1000);
 
-        // TODO: Add lip sync API
-        // if (this.lipSync) {
-        //     const value = 0; // 0 ~ 1
-        //
-        //     for (let i = 0; i < this.lipSyncIds.length; ++i) {
-        //         model.addParameterValueById(this.lipSyncIds[i], value, 0.8);
-        //     }
-        // }
+        // Apply lip sync
+        if (this.lipSyncEnabled && this.motionManager.lipSyncIds.length > 0) {
+            for (let i = 0; i < this.motionManager.lipSyncIds.length; ++i) {
+                model.addParameterValueById(this.motionManager.lipSyncIds[i], this.lipSyncValue, 0.8);
+            }
+        }
 
         this.physics?.evaluate(model, dt);
         this.pose?.updateParameters(model, dt);
