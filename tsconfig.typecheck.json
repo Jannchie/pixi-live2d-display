@@ -1,0 +1,42 @@
+{
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "target": "esnext",
+    "module": "esnext",
+    "strict": true,
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@cubism/*": ["node_modules/@types/cubism/*"]
+    },
+    "types": [
+      "node",
+      "offscreencanvas"
+    ],
+    "lib": [
+      "esnext",
+      "dom",
+      "dom.iterable"
+    ]
+  },
+  "include": [
+    "src/**/*",
+    "playground/**/*",
+    "types/cubism.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "lib",
+    "build*",
+    "types/index.d.ts",
+    "types/extra.d.ts",
+    "cubism"
+  ]
+}

@@ -1,3 +1,24 @@
+## v1.1.0
+
+[v1.0.1...v1.1.0](https://github.com/Jannchie/pixi-live2d-display/compare/v1.0.1...v1.1.0)
+
+### :sparkles: Features
+
+- **eye-blink**: add toggle for auto eye blink - By [Jannchie](mailto:jannchie@gmail.com) in [495dd23](https://github.com/Jannchie/pixi-live2d-display/commit/495dd23)
+- **focus**: add eyes always look at camera option and ui controls - By [Jannchie](mailto:jannchie@gmail.com) in [b62095e](https://github.com/Jannchie/pixi-live2d-display/commit/b62095e)
+- **lip-sync**: add realistic talking animation - By [Jannchie](mailto:jannchie@gmail.com) in [c5072e6](https://github.com/Jannchie/pixi-live2d-display/commit/c5072e6)
+- **lip-sync**: add audio-based speaking and microphone lip sync support - By [Jannchie](mailto:jannchie@gmail.com) in [5d64ecd](https://github.com/Jannchie/pixi-live2d-display/commit/5d64ecd)
+- **lip-sync**: add lip sync api and controls - By [Jannchie](mailto:jannchie@gmail.com) in [e81c56f](https://github.com/Jannchie/pixi-live2d-display/commit/e81c56f)
+- **utils**: export AudioAnalyzer utility - By [Jannchie](mailto:jannchie@gmail.com) in [e19d518](https://github.com/Jannchie/pixi-live2d-display/commit/e19d518)
+
+### :adhesive_bandage: Fixes
+
+- improve error handling and webgl texture state management - By [Jannchie](mailto:jannchie@gmail.com) in [d58b6fe](https://github.com/Jannchie/pixi-live2d-display/commit/d58b6fe)
+
+### :wrench: Chores
+
+- **playground**: remove commented global app reference - By [Jannchie](mailto:jannchie@gmail.com) in [52d8ebd](https://github.com/Jannchie/pixi-live2d-display/commit/52d8ebd)
+
 ## v1.0.1
 
 [v1.0.0...v1.0.1](https://github.com/Jannchie/pixi-live2d-display/compare/v1.0.0...v1.0.1)
