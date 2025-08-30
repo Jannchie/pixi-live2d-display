@@ -254,8 +254,7 @@ export class Cubism2InternalModel extends InternalModel {
     }
 
     updateFocus() {
-        this.coreModel.addToParamFloat(this.eyeballXParamIndex, this.focusController.x);
-        this.coreModel.addToParamFloat(this.eyeballYParamIndex, this.focusController.y);
+        // Update head angles (always, for natural head movement)
         this.coreModel.addToParamFloat(this.angleXParamIndex, this.focusController.x * 30);
         this.coreModel.addToParamFloat(this.angleYParamIndex, this.focusController.y * 30);
         this.coreModel.addToParamFloat(
@@ -263,6 +262,24 @@ export class Cubism2InternalModel extends InternalModel {
             this.focusController.x * this.focusController.y * -30,
         );
         this.coreModel.addToParamFloat(this.bodyAngleXParamIndex, this.focusController.x * 10);
+        
+        if (this.eyesAlwaysLookAtCamera) {
+            // When eyes are locked to camera, compensate for head movement
+            // Get current head angles to calculate compensation
+            const currentAngleX = this.coreModel.getParamFloat(this.angleXParamIndex);
+            const currentAngleY = this.coreModel.getParamFloat(this.angleYParamIndex);
+            
+            const eyeCompensationX = (currentAngleX / 30) * 1; // Over-compensate for stronger effect
+            const eyeCompensationY = (currentAngleY / 30) * 1;
+            
+            // Eyes look at camera (0,0) plus compensation for head angle
+            this.coreModel.setParamFloat(this.eyeballXParamIndex, -eyeCompensationX);
+            this.coreModel.setParamFloat(this.eyeballYParamIndex, -eyeCompensationY);
+        } else {
+            // Normal eye movement following focus
+            this.coreModel.addToParamFloat(this.eyeballXParamIndex, this.focusController.x);
+            this.coreModel.addToParamFloat(this.eyeballYParamIndex, this.focusController.y);
+        }
     }
 
     updateNaturalMovements(dt: DOMHighResTimeStamp, now: DOMHighResTimeStamp) {

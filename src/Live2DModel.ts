@@ -596,6 +596,24 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
     }
 
     /**
+     * Sets whether eyes should always look at camera regardless of head movement.
+     * @param enabled - Whether to lock eyes to camera.
+     */
+    setEyesAlwaysLookAtCamera(enabled: boolean): void {
+        if (this.isReady()) {
+            this.internalModel.eyesAlwaysLookAtCamera = enabled;
+        }
+    }
+
+    /**
+     * Gets whether eyes are locked to camera.
+     * @return Whether eyes are locked to camera.
+     */
+    isEyesAlwaysLookAtCamera(): boolean {
+        return this.isReady() ? this.internalModel.eyesAlwaysLookAtCamera : false;
+    }
+
+    /**
      * Start speaking with base64 audio data or audio URL.
      * @param audioData - Base64 audio data or audio URL
      * @param options - Speaking options

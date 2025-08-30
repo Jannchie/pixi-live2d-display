@@ -124,6 +124,11 @@ export abstract class InternalModel extends EventEmitter {
     lipSyncValue = 0;
 
     /**
+     * Flags whether eyes should always look at camera regardless of head movement.
+     */
+    eyesAlwaysLookAtCamera = false;
+
+    /**
      * Should be called in the constructor of derived class.
      */
     protected init() {

@@ -237,8 +237,7 @@ export class Cubism4InternalModel extends InternalModel {
     }
 
     updateFocus() {
-        this.coreModel.addParameterValueById(this.idParamEyeBallX, this.focusController.x); // -1 ~ 1
-        this.coreModel.addParameterValueById(this.idParamEyeBallY, this.focusController.y);
+        // Update head angles (always, for natural head movement)
         this.coreModel.addParameterValueById(this.idParamAngleX, this.focusController.x * 30); // -30 ~ 30
         this.coreModel.addParameterValueById(this.idParamAngleY, this.focusController.y * 30);
         this.coreModel.addParameterValueById(
@@ -246,6 +245,26 @@ export class Cubism4InternalModel extends InternalModel {
             this.focusController.x * this.focusController.y * -30,
         );
         this.coreModel.addParameterValueById(this.idParamBodyAngleX, this.focusController.x * 10); // -10 ~ 10
+        
+        if (this.eyesAlwaysLookAtCamera) {
+            // When eyes are locked to camera, compensate for head movement
+            // Get current head angles to calculate compensation
+            const currentAngleX = this.coreModel.getParameterValueById(this.idParamAngleX);
+            const currentAngleY = this.coreModel.getParameterValueById(this.idParamAngleY);
+            
+            // Compensate eye position to counteract head rotation
+            // Higher compensation factor for stronger "looking at user" effect
+            const eyeCompensationX = (currentAngleX / 30) * 1; // Over-compensate for stronger effect
+            const eyeCompensationY = (currentAngleY / 30) * 1;
+            console.log(`Eye Compensation - X: ${eyeCompensationX}, Y: ${eyeCompensationY}`);
+            // Eyes look at camera (0,0) plus compensation for head angle
+            this.coreModel.setParameterValueById(this.idParamEyeBallX, -eyeCompensationX);
+            this.coreModel.setParameterValueById(this.idParamEyeBallY, -eyeCompensationY);
+        } else {
+            // Normal eye movement following focus
+            this.coreModel.addParameterValueById(this.idParamEyeBallX, this.focusController.x); // -1 ~ 1
+            this.coreModel.addParameterValueById(this.idParamEyeBallY, this.focusController.y);
+        }
     }
 
     updateNaturalMovements(dt: DOMHighResTimeStamp, now: DOMHighResTimeStamp) {

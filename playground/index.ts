@@ -2,23 +2,82 @@ import { Application, Ticker } from "pixi.js";
 import { Live2DModel } from "../src";
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
-const modelURL =
-    "models/06-v2.1024/06-v2.model3.json";
 
-async function main() {
-    // Create and initialize PixiJS application
-    const app = new Application();
-    await app.init({
-        resizeTo: window,
-        canvas: canvas,
-        antialias:true,
-    });
+// Available models configuration
+const availableModels = [
+    {
+        name: "Local 06-v2 (Cubism 4)",
+        url: "models/06-v2.1024/06-v2.model3.json",
+        type: "local"
+    },
+    {
+        name: "Official Haru (Cubism 4)",
+        url: "https://cdn.jsdelivr.net/gh/Live2D/CubismWebSamples@master/Samples/Resources/Haru/Haru.model3.json",
+        type: "official"
+    },
+    {
+        name: "Official Hiyori (Cubism 4)", 
+        url: "https://cdn.jsdelivr.net/gh/Live2D/CubismWebSamples@master/Samples/Resources/Hiyori/Hiyori.model3.json",
+        type: "official"
+    },
+    {
+        name: "Official Wanko (Cubism 4)",
+        url: "https://cdn.jsdelivr.net/gh/Live2D/CubismWebSamples@master/Samples/Resources/Wanko/Wanko.model3.json", 
+        type: "official"
+    },
+    {
+        name: "Official Mao (Cubism 4)",
+        url: "https://cdn.jsdelivr.net/gh/Live2D/CubismWebSamples@master/Samples/Resources/Mao/Mao.model3.json",
+        type: "official"
+    },
+    {
+        name: "Official Shizuku (Cubism 2)",
+        url: "https://cdn.jsdelivr.net/gh/guansss/pixi-live2d-display@master/test/assets/shizuku/shizuku.model.json",
+        type: "official"
+    }
+];
+
+let currentModelIndex = 0;
+let currentModel: Live2DModel | null = null;
+let app: Application;
+let isLoadingModel = false;
+
+async function loadModel(modelIndex: number) {
+    if (isLoadingModel) {
+        console.log('Model loading already in progress, skipping...');
+        return;
+    }
+    
+    const modelConfig = availableModels[modelIndex];
+    console.log(`Loading model: ${modelConfig.name}`);
+    
+    isLoadingModel = true;
+    
     try {
-        // Load Live2D model
-        const model = await Live2DModel.from(modelURL, {
+        // Remove existing model safely
+        if (currentModel) {
+            try {
+                // Remove from stage first
+                if (app.stage.children.includes(currentModel)) {
+                    app.stage.removeChild(currentModel);
+                }
+                
+                // Only destroy if model is fully initialized
+                if (currentModel.internalModel && typeof currentModel.destroy === 'function') {
+                    currentModel.destroy();
+                }
+            } catch (destroyError) {
+                console.warn('Error destroying previous model:', destroyError);
+            }
+            currentModel = null;
+        }
+        
+        // Load new model
+        const model = await Live2DModel.from(modelConfig.url, {
             ticker: Ticker.shared,
         });
         model.setRenderer(app.renderer);
+        
         // Scale and position model
         const scale = Math.min(window.innerWidth / model.width, 
                               window.innerHeight / model.height) * 0.8;
@@ -32,40 +91,63 @@ async function main() {
         // Add to stage
         app.stage.addChild(model);
         
-        // Add lip sync controls
-        setupLipSyncControls(model);
+        // Update controls for new model if they exist
+        updateControlsForModel(model);
         
-        // Add debug logging
-        console.log('Model loaded:', model);
-        console.log('Model methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(model)));
-        console.log('Model isReady:', model.isReady ? model.isReady() : 'No isReady method');
+        currentModel = model;
+        currentModelIndex = modelIndex;
         
-        // Debug LipSync configuration
-        if (model.internalModel) {
-            console.log('Internal model type:', model.internalModel.constructor.name);
-            console.log('Motion manager:', model.internalModel.motionManager);
-            if ((model.internalModel as any).motionManager?.lipSyncIds) {
-                console.log('LipSync IDs:', (model.internalModel as any).motionManager.lipSyncIds);
-            } else {
-                console.log('No LipSync IDs found in motion manager');
-            }
-        }
-        
-        // Test lip sync directly
-        setTimeout(() => {
-            const modelWithLipSync = model as any;
-            if (typeof modelWithLipSync.startLipSync === 'function') {
-                console.log('Starting lip sync...');
-                modelWithLipSync.startLipSync();
-                modelWithLipSync.setLipSyncValue(0.8);
-                console.log('Lip sync value set to 0.8');
-            } else {
-                console.error('startLipSync method not available');
-            }
-        }, 2000);
+        console.log(`Model loaded successfully: ${modelConfig.name}`);
+        return model;
         
     } catch (error) {
-        console.error("Failed to load model:", error);
+        console.error(`Failed to load model ${modelConfig.name}:`, error);
+        throw error;
+    } finally {
+        isLoadingModel = false;
+    }
+}
+
+async function main() {
+    // Create and initialize PixiJS application
+    app = new Application();
+    await app.init({
+        resizeTo: window,
+        canvas: canvas,
+        antialias: true,
+        multiSample: 4, // 4x MSAA for better anti-aliasing
+        resolution: window.devicePixelRatio || 1, // Use device pixel ratio for crisp rendering
+        autoDensity: true, // Automatically adjust canvas density
+        backgroundAlpha: 0, // Transparent background
+        powerPreference: 'high-performance', // Use high-performance GPU if available
+        premultipliedAlpha: false, // Better for Live2D rendering
+    });
+    
+    // Setup model selector
+    setupModelSelector();
+    
+    // Setup render quality controls
+    setupRenderQualityControls();
+    
+    try {
+        // Wait a bit for the app to fully initialize
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Load initial model
+        await loadModel(currentModelIndex);
+        
+    } catch (error) {
+        console.error("Failed to load initial model:", error);
+        
+        // Try to load the first model as fallback
+        if (currentModelIndex !== 0) {
+            console.log("Attempting to load fallback model...");
+            try {
+                await loadModel(0);
+            } catch (fallbackError) {
+                console.error("Failed to load fallback model:", fallbackError);
+            }
+        }
     }
 }
 
@@ -358,6 +440,571 @@ function setupLipSyncControls(model: Live2DModel) {
     controlPanel.appendChild(autoButton);
 
     document.body.appendChild(controlPanel);
+    lipSyncControlsPanel = controlPanel;
+}
+
+function setupFocusControls(model: Live2DModel) {
+    // Create focus control panel
+    const focusPanel = document.createElement('div');
+    focusPanel.style.cssText = `
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        font-family: Arial, sans-serif;
+        z-index: 1000;
+    `;
+
+    // Title
+    const title = document.createElement('h3');
+    title.textContent = 'Focus Controls';
+    title.style.cssText = 'margin: 0 0 15px 0; color: #fff;';
+    
+    // Force look at camera button
+    const lookAtCameraButton = document.createElement('button');
+    lookAtCameraButton.textContent = 'Look at Camera';
+    lookAtCameraButton.style.cssText = `
+        display: block;
+        margin: 10px 0;
+        padding: 10px 20px;
+        font-size: 16px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        background: #17a2b8;
+        color: white;
+    `;
+    
+    // Eyes only lock button  
+    const eyesOnlyButton = document.createElement('button');
+    eyesOnlyButton.textContent = 'Eyes Only Look at Camera';
+    eyesOnlyButton.style.cssText = `
+        display: block;
+        margin: 10px 0;
+        padding: 10px 20px;
+        font-size: 16px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        background: #28a745;
+        color: white;
+    `;
+    
+    let forceLookAtCamera = false;
+    let focusInterval: number | null = null;
+    
+    lookAtCameraButton.onclick = () => {
+        if (forceLookAtCamera) {
+            // Stop forcing look at camera
+            forceLookAtCamera = false;
+            if (focusInterval) {
+                clearInterval(focusInterval);
+                focusInterval = null;
+            }
+            lookAtCameraButton.textContent = 'Look at Camera';
+            lookAtCameraButton.style.background = '#17a2b8';
+        } else {
+            // Start forcing look at camera
+            forceLookAtCamera = true;
+            
+            // Immediately set focus to center
+            if (model.internalModel && model.internalModel.focusController) {
+                model.internalModel.focusController.focus(0, 0, true);
+            }
+            
+            // Keep focusing at center every frame
+            focusInterval = setInterval(() => {
+                if (model.internalModel && model.internalModel.focusController) {
+                    model.internalModel.focusController.focus(0, 0, false);
+                }
+            }, 16) as any; // ~60fps
+            
+            lookAtCameraButton.textContent = 'Stop Looking';
+            lookAtCameraButton.style.background = '#dc3545';
+        }
+    };
+    
+    // Eyes only lock functionality
+    eyesOnlyButton.onclick = () => {
+        const modelWithEyesLock = model as any;
+        if (modelWithEyesLock.isEyesAlwaysLookAtCamera && modelWithEyesLock.isEyesAlwaysLookAtCamera()) {
+            // Disable eyes lock
+            modelWithEyesLock.setEyesAlwaysLookAtCamera(false);
+            eyesOnlyButton.textContent = 'Eyes Only Look at Camera';
+            eyesOnlyButton.style.background = '#28a745';
+        } else {
+            // Enable eyes lock and set focus to camera
+            modelWithEyesLock.setEyesAlwaysLookAtCamera(true);
+            if (model.internalModel && model.internalModel.focusController) {
+                model.internalModel.focusController.focus(0, 0, true);
+            }
+            eyesOnlyButton.textContent = 'Unlock Eyes';
+            eyesOnlyButton.style.background = '#dc3545';
+        }
+    };
+    
+    // Manual focus controls
+    const manualControls = document.createElement('div');
+    manualControls.innerHTML = `
+        <p style="margin: 15px 0 5px 0; font-size: 14px;">Manual Focus:</p>
+    `;
+    
+    // X axis slider
+    const xContainer = document.createElement('div');
+    xContainer.innerHTML = `
+        <label style="font-size: 12px;">X: <span id="focusX">0</span></label>
+    `;
+    
+    const xSlider = document.createElement('input');
+    xSlider.type = 'range';
+    xSlider.min = '-1';
+    xSlider.max = '1';
+    xSlider.step = '0.1';
+    xSlider.value = '0';
+    xSlider.style.cssText = `
+        width: 180px;
+        display: block;
+        margin: 5px 0;
+    `;
+    
+    // Y axis slider
+    const yContainer = document.createElement('div');
+    yContainer.innerHTML = `
+        <label style="font-size: 12px;">Y: <span id="focusY">0</span></label>
+    `;
+    
+    const ySlider = document.createElement('input');
+    ySlider.type = 'range';
+    ySlider.min = '-1';
+    ySlider.max = '1';
+    ySlider.step = '0.1';
+    ySlider.value = '0';
+    ySlider.style.cssText = `
+        width: 180px;
+        display: block;
+        margin: 5px 0;
+    `;
+    
+    const xDisplay = xContainer.querySelector('#focusX') as HTMLSpanElement;
+    const yDisplay = yContainer.querySelector('#focusY') as HTMLSpanElement;
+    
+    xSlider.oninput = () => {
+        if (!forceLookAtCamera) {
+            const x = parseFloat(xSlider.value);
+            const y = parseFloat(ySlider.value);
+            if (model.internalModel && model.internalModel.focusController) {
+                model.internalModel.focusController.focus(x, y);
+            }
+            xDisplay.textContent = x.toFixed(1);
+        }
+    };
+    
+    ySlider.oninput = () => {
+        if (!forceLookAtCamera) {
+            const x = parseFloat(xSlider.value);
+            const y = parseFloat(ySlider.value);
+            if (model.internalModel && model.internalModel.focusController) {
+                model.internalModel.focusController.focus(x, y);
+            }
+            yDisplay.textContent = y.toFixed(1);
+        }
+    };
+    
+    // Reset button
+    const resetButton = document.createElement('button');
+    resetButton.textContent = 'Reset to Center';
+    resetButton.style.cssText = `
+        display: block;
+        margin: 10px 0;
+        padding: 8px 15px;
+        font-size: 14px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        background: #6c757d;
+        color: white;
+    `;
+    
+    resetButton.onclick = () => {
+        xSlider.value = '0';
+        ySlider.value = '0';
+        xDisplay.textContent = '0';
+        yDisplay.textContent = '0';
+        if (model.internalModel && model.internalModel.focusController) {
+            model.internalModel.focusController.focus(0, 0);
+        }
+    };
+
+    // Assemble focus panel
+    focusPanel.appendChild(title);
+    focusPanel.appendChild(lookAtCameraButton);
+    focusPanel.appendChild(eyesOnlyButton);
+    focusPanel.appendChild(manualControls);
+    focusPanel.appendChild(xContainer);
+    focusPanel.appendChild(xSlider);
+    focusPanel.appendChild(yContainer);
+    focusPanel.appendChild(ySlider);
+    focusPanel.appendChild(resetButton);
+
+    document.body.appendChild(focusPanel);
+    focusControlsPanel = focusPanel;
+}
+
+function setupModelSelector() {
+    // Create model selector panel
+    const selectorPanel = document.createElement('div');
+    selectorPanel.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        font-family: Arial, sans-serif;
+        z-index: 1000;
+        min-width: 250px;
+    `;
+
+    // Title
+    const title = document.createElement('h3');
+    title.textContent = 'Model Selector';
+    title.style.cssText = 'margin: 0 0 15px 0; color: #fff;';
+    
+    // Model dropdown
+    const modelSelect = document.createElement('select');
+    modelSelect.style.cssText = `
+        width: 100%;
+        padding: 8px;
+        margin: 10px 0;
+        border: none;
+        border-radius: 5px;
+        background: #333;
+        color: white;
+        font-size: 14px;
+    `;
+
+    availableModels.forEach((model, index) => {
+        const option = document.createElement('option');
+        option.value = index.toString();
+        option.textContent = model.name;
+        if (index === currentModelIndex) {
+            option.selected = true;
+        }
+        modelSelect.appendChild(option);
+    });
+    
+    // Loading indicator
+    const loadingIndicator = document.createElement('div');
+    loadingIndicator.style.cssText = `
+        display: none;
+        color: #17a2b8;
+        font-size: 12px;
+        margin: 10px 0;
+    `;
+    loadingIndicator.textContent = 'Loading model...';
+    
+    // Load button
+    const loadButton = document.createElement('button');
+    loadButton.textContent = 'Load Model';
+    loadButton.style.cssText = `
+        width: 100%;
+        padding: 10px;
+        margin: 10px 0;
+        border: none;
+        border-radius: 5px;
+        background: #007bff;
+        color: white;
+        font-size: 14px;
+        cursor: pointer;
+    `;
+    
+    loadButton.onclick = async () => {
+        const selectedIndex = parseInt(modelSelect.value);
+        if (selectedIndex === currentModelIndex || isLoadingModel) {
+            console.log('Model already loaded or loading in progress');
+            return;
+        }
+        
+        loadButton.disabled = true;
+        modelSelect.disabled = true;
+        loadButton.textContent = 'Loading...';
+        loadingIndicator.style.display = 'block';
+        loadingIndicator.textContent = 'Loading model...';
+        loadingIndicator.style.color = '#17a2b8';
+        
+        try {
+            await loadModel(selectedIndex);
+            loadButton.textContent = 'Load Model';
+            loadingIndicator.style.display = 'none';
+        } catch (error) {
+            loadButton.textContent = 'Load Failed - Retry';
+            loadingIndicator.textContent = `Failed: ${error.message || error}`;
+            loadingIndicator.style.color = '#dc3545';
+            console.error('Model load error:', error);
+            
+            // Reset loading indicator after 3 seconds
+            setTimeout(() => {
+                loadingIndicator.textContent = 'Loading model...';
+                loadingIndicator.style.color = '#17a2b8';
+                loadingIndicator.style.display = 'none';
+                loadButton.textContent = 'Load Model';
+            }, 3000);
+        } finally {
+            loadButton.disabled = false;
+            modelSelect.disabled = false;
+        }
+    };
+
+    // Current model info
+    const modelInfo = document.createElement('div');
+    modelInfo.style.cssText = `
+        font-size: 12px;
+        color: #aaa;
+        margin: 10px 0 0 0;
+        padding: 10px;
+        background: rgba(255,255,255,0.1);
+        border-radius: 5px;
+    `;
+    updateModelInfo(modelInfo);
+
+    // Assemble selector panel
+    selectorPanel.appendChild(title);
+    selectorPanel.appendChild(modelSelect);
+    selectorPanel.appendChild(loadButton);
+    selectorPanel.appendChild(loadingIndicator);
+    selectorPanel.appendChild(modelInfo);
+
+    document.body.appendChild(selectorPanel);
+    
+    // Store reference for updates
+    (window as any).modelSelectorPanel = {
+        select: modelSelect,
+        info: modelInfo
+    };
+}
+
+function updateModelInfo(infoElement: HTMLElement) {
+    const currentConfig = availableModels[currentModelIndex];
+    infoElement.innerHTML = `
+        <strong>Current Model:</strong><br>
+        ${currentConfig.name}<br>
+        <small>Type: ${currentConfig.type}</small>
+    `;
+}
+
+let lipSyncControlsPanel: HTMLElement | null = null;
+let focusControlsPanel: HTMLElement | null = null;
+
+function updateControlsForModel(model: Live2DModel) {
+    // Remove existing control panels
+    if (lipSyncControlsPanel) {
+        document.body.removeChild(lipSyncControlsPanel);
+        lipSyncControlsPanel = null;
+    }
+    if (focusControlsPanel) {
+        document.body.removeChild(focusControlsPanel);
+        focusControlsPanel = null;
+    }
+    
+    // Create new control panels for the model
+    setupLipSyncControls(model);
+    setupFocusControls(model);
+    
+    // Update model selector info
+    const selectorPanel = (window as any).modelSelectorPanel;
+    if (selectorPanel) {
+        selectorPanel.select.value = currentModelIndex.toString();
+        updateModelInfo(selectorPanel.info);
+    }
+}
+
+function setupRenderQualityControls() {
+    // Create render quality control panel
+    const qualityPanel = document.createElement('div');
+    qualityPanel.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        font-family: Arial, sans-serif;
+        z-index: 1000;
+        min-width: 200px;
+    `;
+
+    // Title
+    const title = document.createElement('h3');
+    title.textContent = 'Render Quality';
+    title.style.cssText = 'margin: 0 0 15px 0; color: #fff; font-size: 14px;';
+    
+    // Resolution scale control
+    const resolutionContainer = document.createElement('div');
+    resolutionContainer.innerHTML = `
+        <label style="font-size: 12px;">Resolution Scale: <span id="resolutionValue">1.0</span>x</label>
+    `;
+    
+    const resolutionSlider = document.createElement('input');
+    resolutionSlider.type = 'range';
+    resolutionSlider.min = '0.5';
+    resolutionSlider.max = '2.0';
+    resolutionSlider.step = '0.1';
+    resolutionSlider.value = (window.devicePixelRatio || 1).toString();
+    resolutionSlider.style.cssText = `
+        width: 100%;
+        margin: 5px 0 15px 0;
+    `;
+    
+    const resolutionDisplay = resolutionContainer.querySelector('#resolutionValue') as HTMLSpanElement;
+    resolutionDisplay.textContent = parseFloat(resolutionSlider.value).toFixed(1);
+    
+    resolutionSlider.oninput = () => {
+        const value = parseFloat(resolutionSlider.value);
+        resolutionDisplay.textContent = value.toFixed(1);
+        
+        // Update renderer resolution
+        if (app && app.renderer) {
+            app.renderer.resolution = value;
+            app.renderer.resize(app.screen.width, app.screen.height);
+        }
+    };
+    
+    // MSAA samples control
+    const msaaContainer = document.createElement('div');
+    msaaContainer.innerHTML = `
+        <label style="font-size: 12px;">MSAA Samples: <span id="msaaValue">4</span>x</label>
+    `;
+    
+    const msaaSelect = document.createElement('select');
+    msaaSelect.style.cssText = `
+        width: 100%;
+        padding: 5px;
+        margin: 5px 0 15px 0;
+        border: none;
+        border-radius: 3px;
+        background: #333;
+        color: white;
+        font-size: 12px;
+    `;
+    
+    const msaaOptions = [
+        { value: '1', label: '1x (Off)' },
+        { value: '2', label: '2x' },
+        { value: '4', label: '4x' },
+        { value: '8', label: '8x' },
+        { value: '16', label: '16x (High-end only)' }
+    ];
+    
+    msaaOptions.forEach(option => {
+        const optionElement = document.createElement('option');
+        optionElement.value = option.value;
+        optionElement.textContent = option.label;
+        if (option.value === '4') optionElement.selected = true;
+        msaaSelect.appendChild(optionElement);
+    });
+    
+    const msaaDisplay = msaaContainer.querySelector('#msaaValue') as HTMLSpanElement;
+    
+    msaaSelect.onchange = () => {
+        const value = msaaSelect.value;
+        msaaDisplay.textContent = value;
+        console.log(`MSAA changed to ${value}x (requires page refresh to take effect)`);
+    };
+    
+    // Performance info
+    const performanceInfo = document.createElement('div');
+    performanceInfo.style.cssText = `
+        font-size: 10px;
+        color: #aaa;
+        margin-top: 10px;
+        padding: 8px;
+        background: rgba(255,255,255,0.05);
+        border-radius: 3px;
+    `;
+    
+    // FPS counter
+    let fps = 0;
+    let fpsCounter = 0;
+    let lastTime = performance.now();
+    
+    function updateFPS() {
+        const currentTime = performance.now();
+        const deltaTime = currentTime - lastTime;
+        fpsCounter++;
+        
+        if (deltaTime >= 1000) {
+            fps = Math.round((fpsCounter * 1000) / deltaTime);
+            fpsCounter = 0;
+            lastTime = currentTime;
+            
+            performanceInfo.innerHTML = `
+                <strong>Performance:</strong><br>
+                FPS: ${fps}<br>
+                Resolution: ${app?.renderer?.resolution?.toFixed(1) || 'N/A'}x<br>
+                Canvas Size: ${app?.screen?.width || 'N/A'}×${app?.screen?.height || 'N/A'}
+            `;
+        }
+        
+        requestAnimationFrame(updateFPS);
+    }
+    
+    updateFPS();
+    
+    // Quality presets
+    const presetsContainer = document.createElement('div');
+    presetsContainer.innerHTML = `
+        <label style="font-size: 12px; margin-bottom: 5px; display: block;">Quality Presets:</label>
+    `;
+    
+    const presetButtons = [
+        { name: 'Low', resolution: 0.5 },
+        { name: 'Medium', resolution: 1.0 },
+        { name: 'High', resolution: 1.5 },
+        { name: 'Ultra', resolution: 2.0 }
+    ];
+    
+    presetButtons.forEach(preset => {
+        const button = document.createElement('button');
+        button.textContent = preset.name;
+        button.style.cssText = `
+            padding: 4px 8px;
+            margin: 2px;
+            border: none;
+            border-radius: 3px;
+            background: #555;
+            color: white;
+            font-size: 10px;
+            cursor: pointer;
+        `;
+        
+        button.onclick = () => {
+            resolutionSlider.value = preset.resolution.toString();
+            resolutionDisplay.textContent = preset.resolution.toFixed(1);
+            
+            if (app && app.renderer) {
+                app.renderer.resolution = preset.resolution;
+                app.renderer.resize(app.screen.width, app.screen.height);
+            }
+        };
+        
+        presetsContainer.appendChild(button);
+    });
+
+    // Assemble quality panel
+    qualityPanel.appendChild(title);
+    qualityPanel.appendChild(resolutionContainer);
+    qualityPanel.appendChild(resolutionSlider);
+    qualityPanel.appendChild(msaaContainer);
+    qualityPanel.appendChild(msaaSelect);
+    qualityPanel.appendChild(presetsContainer);
+    qualityPanel.appendChild(performanceInfo);
+
+    document.body.appendChild(qualityPanel);
 }
 
 main();
