@@ -548,6 +548,36 @@ function setupFocusControls(model: Live2DModel) {
         }
     };
     
+    // Auto Eye Blink button
+    const eyeBlinkButton = document.createElement('button');
+    eyeBlinkButton.textContent = 'Disable Auto Blink';
+    eyeBlinkButton.style.cssText = `
+        display: block;
+        margin: 10px 0;
+        padding: 10px 20px;
+        font-size: 16px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        background: #dc3545;
+        color: white;
+    `;
+    
+    eyeBlinkButton.onclick = () => {
+        const modelWithBlink = model as any;
+        if (modelWithBlink.isEyeBlinkEnabled && modelWithBlink.isEyeBlinkEnabled()) {
+            // Disable auto blink
+            modelWithBlink.setEyeBlinkEnabled(false);
+            eyeBlinkButton.textContent = 'Enable Auto Blink';
+            eyeBlinkButton.style.background = '#28a745';
+        } else {
+            // Enable auto blink
+            modelWithBlink.setEyeBlinkEnabled(true);
+            eyeBlinkButton.textContent = 'Disable Auto Blink';
+            eyeBlinkButton.style.background = '#dc3545';
+        }
+    };
+    
     // Manual focus controls
     const manualControls = document.createElement('div');
     manualControls.innerHTML = `
@@ -644,6 +674,7 @@ function setupFocusControls(model: Live2DModel) {
     focusPanel.appendChild(title);
     focusPanel.appendChild(lookAtCameraButton);
     focusPanel.appendChild(eyesOnlyButton);
+    focusPanel.appendChild(eyeBlinkButton);
     focusPanel.appendChild(manualControls);
     focusPanel.appendChild(xContainer);
     focusPanel.appendChild(xSlider);

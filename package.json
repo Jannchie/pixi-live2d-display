@@ -46,7 +46,8 @@
     "deploy": "gh-pages -d site",
     "prepublishOnly": "npm run type && npm run build",
     "lint": "eslint . --config .eslintrc.cjs --rule \"prettier/prettier: error\"",
-    "lint:fix": "npm run lint -- --fix"
+    "lint:fix": "npm run lint -- --fix",
+    "typecheck": "tsc --project tsconfig.typecheck.json"
   },
   "files": [
     "dist",

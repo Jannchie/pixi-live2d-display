@@ -623,6 +623,24 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
     }
 
     /**
+     * Sets whether auto eye blinking is enabled.
+     * @param enabled - Whether to enable auto eye blinking.
+     */
+    setEyeBlinkEnabled(enabled: boolean): void {
+        if (this.isReady()) {
+            this.internalModel.setEyeBlinkEnabled(enabled);
+        }
+    }
+
+    /**
+     * Gets whether auto eye blinking is enabled.
+     * @return Whether auto eye blinking is enabled.
+     */
+    isEyeBlinkEnabled(): boolean {
+        return this.isReady() ? this.internalModel.isEyeBlinkEnabled() : true;
+    }
+
+    /**
      * Start speaking with base64 audio data or audio URL.
      * @param audioData - Base64 audio data or audio URL
      * @param options - Speaking options

@@ -236,7 +236,7 @@ export class Cubism2InternalModel extends InternalModel {
 
         this.motionManager.expressionManager?.update(model, now);
 
-        if (!motionUpdated) {
+        if (!motionUpdated && this.eyeBlinkEnabled) {
             this.eyeBlink?.update(dt);
         }
 

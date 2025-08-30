@@ -129,6 +129,11 @@ export abstract class InternalModel extends EventEmitter {
     eyesAlwaysLookAtCamera = false;
 
     /**
+     * Flags whether auto eye blinking is enabled.
+     */
+    eyeBlinkEnabled = true;
+
+    /**
      * Should be called in the constructor of derived class.
      */
     protected init() {
@@ -289,6 +294,22 @@ export abstract class InternalModel extends EventEmitter {
      */
     setLipSyncEnabled(enabled: boolean): void {
         this.lipSyncEnabled = enabled;
+    }
+
+    /**
+     * Enables or disables auto eye blinking.
+     * @param enabled - Whether to enable auto eye blinking.
+     */
+    setEyeBlinkEnabled(enabled: boolean): void {
+        this.eyeBlinkEnabled = enabled;
+    }
+
+    /**
+     * Gets current auto eye blinking enabled state.
+     * @return Whether auto eye blinking is enabled.
+     */
+    isEyeBlinkEnabled(): boolean {
+        return this.eyeBlinkEnabled;
     }
 
     /**

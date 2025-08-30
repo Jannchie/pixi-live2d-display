@@ -211,7 +211,7 @@ export class Cubism4InternalModel extends InternalModel {
 
         this.motionManager.expressionManager?.update(model, now);
 
-        if (!motionUpdated) {
+        if (!motionUpdated && this.eyeBlinkEnabled) {
             this.eyeBlink?.updateParameters(model, dt);
         }
 
@@ -269,7 +269,9 @@ export class Cubism4InternalModel extends InternalModel {
 
     updateNaturalMovements(dt: DOMHighResTimeStamp, now: DOMHighResTimeStamp) {
         this.breath?.updateParameters(this.coreModel, dt / 1000);
-        this.eyeBlink?.updateParameters(this.coreModel, dt / 1000);
+        if (this.eyeBlinkEnabled) {
+            this.eyeBlink?.updateParameters(this.coreModel, dt / 1000);
+        }
     }
 
     draw(gl: WebGLRenderingContext): void {
