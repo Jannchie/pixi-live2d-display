@@ -7,7 +7,7 @@ import { Matrix, ObservablePoint, Point, Container, Rectangle } from "pixi.js";
 import { Automator, type AutomatorOptions } from "./Automator";
 import { Live2DTransform } from "./Live2DTransform";
 import type { JSONObject } from "./types/helpers";
-import { logger } from "./utils";
+import { logger, AudioAnalyzer } from "./utils";
 
 export interface Live2DModelOptions extends MotionManagerOptions, AutomatorOptions {}
 
@@ -136,6 +136,16 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
     deltaTime: DOMHighResTimeStamp = 0;
 
     automator: Automator;
+
+    /**
+     * Audio analyzer for speech recognition and lip sync.
+     */
+    private audioAnalyzer: AudioAnalyzer | null = null;
+
+    /**
+     * Current speaking state.
+     */
+    private isSpeaking = false;
 
     constructor(options?: Live2DModelOptions) {
         super();
@@ -586,6 +596,131 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
     }
 
     /**
+     * Start speaking with base64 audio data or audio URL.
+     * @param audioData - Base64 audio data or audio URL
+     * @param options - Speaking options
+     */
+    async speak(
+        audioData: string,
+        options: {
+            volume?: number;
+            expression?: string;
+            resetExpression?: boolean;
+            onFinish?: () => void;
+            onError?: (error: Error) => void;
+        } = {}
+    ): Promise<void> {
+        if (!this.isReady()) {
+            throw new Error('Model is not ready');
+        }
+
+        if (this.isSpeaking) {
+            this.stopSpeaking();
+        }
+
+        try {
+            this.isSpeaking = true;
+            
+            // Initialize audio analyzer if needed
+            if (!this.audioAnalyzer) {
+                this.audioAnalyzer = new AudioAnalyzer();
+            }
+
+            // Start lip sync
+            this.startLipSync();
+
+            // Play and analyze audio
+            await this.audioAnalyzer.playAndAnalyze(audioData, (volume) => {
+                // Apply volume-based lip sync
+                const lipSyncValue = Math.min(1, volume * (options.volume || 1));
+                this.setLipSyncValue(lipSyncValue);
+            });
+
+            // Speaking finished
+            this.isSpeaking = false;
+            this.setLipSyncValue(0);
+            
+            if (options.onFinish) {
+                options.onFinish();
+            }
+        } catch (error) {
+            this.isSpeaking = false;
+            this.setLipSyncValue(0);
+            
+            const errorObj = error instanceof Error ? error : new Error(String(error));
+            if (options.onError) {
+                options.onError(errorObj);
+            } else {
+                console.error('Speaking error:', errorObj);
+            }
+        }
+    }
+
+    /**
+     * Stop current speaking.
+     */
+    stopSpeaking(): void {
+        if (this.audioAnalyzer) {
+            this.audioAnalyzer.destroy();
+            this.audioAnalyzer = null;
+        }
+        
+        this.isSpeaking = false;
+        this.setLipSyncValue(0);
+    }
+
+    /**
+     * Check if currently speaking.
+     * @return Whether the model is currently speaking.
+     */
+    isSpeakingNow(): boolean {
+        return this.isSpeaking;
+    }
+
+    /**
+     * Start microphone input for real-time lip sync.
+     * @param onError - Error callback
+     */
+    async startMicrophoneLipSync(onError?: (error: Error) => void): Promise<void> {
+        if (!this.isReady()) {
+            throw new Error('Model is not ready');
+        }
+
+        try {
+            // Initialize audio analyzer if needed
+            if (!this.audioAnalyzer) {
+                this.audioAnalyzer = new AudioAnalyzer();
+            }
+
+            // Start lip sync
+            this.startLipSync();
+
+            // Start microphone capture
+            await this.audioAnalyzer.startMicrophone((volume) => {
+                // Apply volume-based lip sync
+                this.setLipSyncValue(volume);
+            });
+        } catch (error) {
+            const errorObj = error instanceof Error ? error : new Error(String(error));
+            if (onError) {
+                onError(errorObj);
+            } else {
+                console.error('Microphone error:', errorObj);
+            }
+        }
+    }
+
+    /**
+     * Stop microphone input.
+     */
+    stopMicrophoneLipSync(): void {
+        if (this.audioAnalyzer) {
+            this.audioAnalyzer.stopMicrophone();
+        }
+        this.setLipSyncValue(0);
+    }
+
+    /**
      * Destroys the model and all related resources. This takes the same options and also
      * behaves the same as `PIXI.Container#destroy`.
      * @param options - Options parameter. A boolean will act as if all options
@@ -605,6 +740,12 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
         }
 
         this.automator.destroy();
+        
+        // Clean up audio resources
+        if (this.audioAnalyzer) {
+            this.audioAnalyzer.destroy();
+            this.audioAnalyzer = null;
+        }
         
         if (this.isReady()) {
             this.internalModel.destroy();

@@ -3,7 +3,7 @@ import { Live2DModel } from "../src";
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 const modelURL =
-    "./models/06-v2.1024/06-v2.model3.json";
+    "models/06-v2.1024/06-v2.model3.json";
 
 async function main() {
     // Create and initialize PixiJS application
@@ -39,6 +39,17 @@ async function main() {
         console.log('Model loaded:', model);
         console.log('Model methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(model)));
         console.log('Model isReady:', model.isReady ? model.isReady() : 'No isReady method');
+        
+        // Debug LipSync configuration
+        if (model.internalModel) {
+            console.log('Internal model type:', model.internalModel.constructor.name);
+            console.log('Motion manager:', model.internalModel.motionManager);
+            if ((model.internalModel as any).motionManager?.lipSyncIds) {
+                console.log('LipSync IDs:', (model.internalModel as any).motionManager.lipSyncIds);
+            } else {
+                console.log('No LipSync IDs found in motion manager');
+            }
+        }
         
         // Test lip sync directly
         setTimeout(() => {
@@ -126,6 +137,47 @@ function setupLipSyncControls(model: Live2DModel) {
         valueDisplay.textContent = value.toFixed(2);
     };
 
+    // Microphone button
+    const micButton = document.createElement('button');
+    micButton.textContent = 'Start Microphone';
+    micButton.style.cssText = `
+        display: block;
+        margin: 10px 0;
+        padding: 10px 20px;
+        font-size: 16px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        background: #6f42c1;
+        color: white;
+    `;
+    
+    let micActive = false;
+    micButton.onclick = async () => {
+        if (micActive) {
+            modelWithLipSync.stopMicrophoneLipSync();
+            micButton.textContent = 'Start Microphone';
+            micButton.style.background = '#6f42c1';
+            micActive = false;
+        } else {
+            try {
+                await modelWithLipSync.startMicrophoneLipSync((error: Error) => {
+                    console.error('Microphone error:', error);
+                    alert('Microphone error: ' + error.message);
+                    micButton.textContent = 'Start Microphone';
+                    micButton.style.background = '#6f42c1';
+                    micActive = false;
+                });
+                micButton.textContent = 'Stop Microphone';
+                micButton.style.background = '#dc3545';
+                micActive = true;
+            } catch (error) {
+                console.error('Failed to start microphone:', error);
+                alert('Failed to start microphone. Please allow microphone access.');
+            }
+        }
+    };
+
     // Auto animation button
     let autoAnimation: number | null = null;
     const autoButton = document.createElement('button');
@@ -167,6 +219,68 @@ function setupLipSyncControls(model: Live2DModel) {
         }
     };
 
+    // Base64 audio test button
+    const speakButton = document.createElement('button');
+    speakButton.textContent = 'Test Speak (Base64)';
+    speakButton.style.cssText = `
+        display: block;
+        margin: 10px 0;
+        padding: 10px 20px;
+        font-size: 16px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        background: #fd7e14;
+        color: white;
+    `;
+    
+    speakButton.onclick = async () => {
+        // Create a simple test audio (1 second beep tone)
+        const audioContext = new AudioContext();
+        const sampleRate = audioContext.sampleRate;
+        const duration = 2; // 2 seconds
+        const numChannels = 1;
+        const numSamples = sampleRate * duration;
+        
+        const audioBuffer = audioContext.createBuffer(numChannels, numSamples, sampleRate);
+        const channelData = audioBuffer.getChannelData(0);
+        
+        // Generate a simple test pattern (talking-like rhythm)
+        for (let i = 0; i < numSamples; i++) {
+            const t = i / sampleRate;
+            const talkingPattern = Math.sin(t * 8 * Math.PI) * Math.sin(t * 2 * Math.PI) * 0.3;
+            channelData[i] = talkingPattern * Math.exp(-t); // Fade out
+        }
+        
+        // Convert to base64 (simplified - in real use, you'd have proper audio encoding)
+        try {
+            await modelWithLipSync.speak('data:audio/wav;base64,fake', {
+                volume: 1.0,
+                onFinish: () => {
+                    console.log('Speaking finished');
+                },
+                onError: (error: Error) => {
+                    console.log('Note: This is a demo button. In real use, provide valid base64 audio data.');
+                    // Start a simple demo animation instead
+                    modelWithLipSync.startLipSync();
+                    let time = 0;
+                    const demoAnimation = setInterval(() => {
+                        time += 0.1;
+                        const value = Math.max(0, Math.sin(time * 8) * 0.5 + 0.3 + Math.random() * 0.2);
+                        modelWithLipSync.setLipSyncValue(value);
+                        
+                        if (time > 3) { // 3 second demo
+                            clearInterval(demoAnimation);
+                            modelWithLipSync.setLipSyncValue(0);
+                        }
+                    }, 50);
+                }
+            });
+        } catch (error) {
+            console.log('Demo speak function - showing animation pattern');
+        }
+    };
+
     // Instructions
     const instructions = document.createElement('div');
     instructions.innerHTML = `
@@ -175,6 +289,8 @@ function setupLipSyncControls(model: Live2DModel) {
         <ul style="margin: 0; padding-left: 20px; font-size: 12px;">
             <li>Toggle: Enable/disable lip sync</li>
             <li>Slider: Manual control (0 = closed, 1 = open)</li>
+            <li>Microphone: Real-time voice input</li>
+            <li>Speak: Test base64 audio method</li>
             <li>Auto: Automatic talking animation</li>
         </ul>
     `;
@@ -184,6 +300,8 @@ function setupLipSyncControls(model: Live2DModel) {
     controlPanel.appendChild(toggleButton);
     controlPanel.appendChild(sliderContainer);
     controlPanel.appendChild(slider);
+    controlPanel.appendChild(micButton);
+    controlPanel.appendChild(speakButton);
     controlPanel.appendChild(autoButton);
 
     document.body.appendChild(controlPanel);

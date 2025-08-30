@@ -32,7 +32,7 @@ export class Cubism4MotionManager extends MotionManager<CubismMotion, CubismSpec
 
         this.definitions = settings.motions ?? {};
         this.eyeBlinkIds = settings.getEyeBlinkParameters() || [];
-        this.lipSyncIds = settings.getLipSyncParameters() || [];
+        this.lipSyncIds = settings.getLipSyncParameters() || ["ParamMouthOpenY"];
 
         this.init(options);
     }
