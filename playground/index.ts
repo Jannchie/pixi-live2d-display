@@ -13,10 +13,6 @@ async function main() {
         canvas: canvas,
         antialias:true,
     });
-    
-    // Make app globally accessible for Live2D renderer
-    // (window as any).app = app;
-    
     try {
         // Load Live2D model
         const model = await Live2DModel.from(modelURL, {
