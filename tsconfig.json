@@ -29,12 +29,14 @@
     ]
   },
   "include": [
-    "**/*",
+    "src/**/*",
+    "playground/**/*",
   ],
   "exclude": [
     "node_modules",
     "lib",
     "build*",
-    "./types"
+    "./types",
+    "**/cubism/**/*"
   ]
 }

@@ -49,6 +49,9 @@ async function loadModel(modelIndex: number) {
     }
     
     const modelConfig = availableModels[modelIndex];
+    if (!modelConfig) {
+        throw new Error(`Invalid model index: ${modelIndex}`);
+    }
     console.log(`Loading model: ${modelConfig.name}`);
     
     isLoadingModel = true;
@@ -114,8 +117,7 @@ async function main() {
     await app.init({
         resizeTo: window,
         canvas: canvas,
-        antialias: true,
-        multiSample: 4, // 4x MSAA for better anti-aliasing
+        antialias: true, // Enable antialiasing
         resolution: window.devicePixelRatio || 1, // Use device pixel ratio for crisp rendering
         autoDensity: true, // Automatically adjust canvas density
         backgroundAlpha: 0, // Transparent background
@@ -742,7 +744,7 @@ function setupModelSelector() {
             loadingIndicator.style.display = 'none';
         } catch (error) {
             loadButton.textContent = 'Load Failed - Retry';
-            loadingIndicator.textContent = `Failed: ${error.message || error}`;
+            loadingIndicator.textContent = `Failed: ${error instanceof Error ? error.message : String(error)}`;
             loadingIndicator.style.color = '#dc3545';
             console.error('Model load error:', error);
             
@@ -789,6 +791,10 @@ function setupModelSelector() {
 
 function updateModelInfo(infoElement: HTMLElement) {
     const currentConfig = availableModels[currentModelIndex];
+    if (!currentConfig) {
+        infoElement.innerHTML = '<strong>No model selected</strong>';
+        return;
+    }
     infoElement.innerHTML = `
         <strong>Current Model:</strong><br>
         ${currentConfig.name}<br>

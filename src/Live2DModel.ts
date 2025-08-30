@@ -482,18 +482,19 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
                 const shouldUpdate = shouldUpdateTexture || 
                     !textureSourceWithGL?._glTextures?.[this.glContextID];
 
-                if (shouldUpdate && this.internalModel) {
-                    webglRenderer.gl.pixelStorei(
-                        WebGLRenderingContext.UNPACK_FLIP_Y_WEBGL,
-                        this.internalModel.textureFlipY,
-                    );
-                }
-
                 // bind the WebGLTexture into Live2D core.
                 // In v8, get the actual WebGL texture object
                 const glTexture = this.extractWebGLTexture(webglRenderer, texture);
                 
                 if (this.isWebGLTexture(glTexture) && this.internalModel) {
+                    // Set texture flip state right before binding each texture
+                    if (shouldUpdate) {
+                        webglRenderer.gl.pixelStorei(
+                            WebGLRenderingContext.UNPACK_FLIP_Y_WEBGL,
+                            this.internalModel.textureFlipY,
+                        );
+                    }
+                    
                     this.internalModel.bindTexture(i, glTexture);
                 }
 
@@ -501,6 +502,14 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
                 if (webglRenderer.textureGC?.count && texture.source) {
                     (texture.source as any).touched = webglRenderer.textureGC.count;
                 }
+            }
+
+            // Reset GL state after texture binding to avoid affecting other textures
+            if (shouldUpdateTexture && this.internalModel) {
+                webglRenderer.gl.pixelStorei(
+                    WebGLRenderingContext.UNPACK_FLIP_Y_WEBGL,
+                    false,
+                );
             }
 
             // In Pixi.js v8, framebuffer structure has changed
