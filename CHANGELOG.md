@@ -1,3 +1,15 @@
+## v1.1.2
+
+[v1.1.1...v1.1.2](https://github.com/Jannchie/pixi-live2d-display/compare/v1.1.1...v1.1.2)
+
+### :memo: Documentation
+
+- add repository guidelines and update docs - By [Jannchie](mailto:jannchie@gmail.com) in [7d39e66](https://github.com/Jannchie/pixi-live2d-display/commit/7d39e66)
+
+### :wrench: Chores
+
+- **deps**: update package metadata and bump dependencies - By [Jannchie](mailto:jannchie@gmail.com) in [0e79ca3](https://github.com/Jannchie/pixi-live2d-display/commit/0e79ca3)
+
 ## v1.1.1
 
 [v1.1.0...v1.1.1](https://github.com/Jannchie/pixi-live2d-display/compare/v1.1.0...v1.1.1)
