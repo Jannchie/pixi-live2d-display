@@ -20,6 +20,10 @@ const assets = [
                 outputFile: coreDir + "live2dcubismcore.js",
             },
             {
+                entryFile: "CubismSdkForWeb-4-r.7/Core/live2dcubismcore.js.map",
+                outputFile: coreDir + "live2dcubismcore.js.map",
+            },
+            {
                 entryFile: "CubismSdkForWeb-4-r.7/Core/live2dcubismcore.d.ts",
                 outputFile: coreDir + "live2dcubismcore.d.ts",
             },
