@@ -38,29 +38,35 @@ pnpm serve-docs              # Serve documentation locally
 ## Architecture
 
 ### Core Structure
+
 - `src/index.ts` - Main entry point, exports all public APIs
 - `src/Live2DModel.ts` - Main wrapper class extending PIXI.Container
 - `src/Live2DTransform.ts` - Transform utilities for Live2D models
 
 ### Cubism Support
+
 - `src/cubism2/` - Cubism 2.1 implementation (older Live2D models)  
 - `src/cubism4/` - Cubism 4 implementation (newer Live2D models)
 - `src/cubism-common/` - Shared functionality between Cubism versions
 
 ### Factory System
+
 - `src/factory/` - Model loading and creation system
 - `src/factory/Live2DFactory.ts` - Main factory for creating models
 - Various loaders: `XHRLoader.ts`, `FileLoader.ts`, `ZipLoader.ts`
 
 ### Build Configuration
+
 - Uses Vite for bundling with custom configuration in `vite.config.ts`
 - Multiple output formats: ES modules, UMD, and separate Cubism 2/4 bundles
 - Custom build script `scripts/build.js` handles multiple bundle generation
 
 ### Entry Points
+
 The project provides multiple entry points for different use cases:
+
 - `index.js` - Full bundle with both Cubism 2 and 4 support
-- `cubism2.js` - Only Cubism 2.1 support 
+- `cubism2.js` - Only Cubism 2.1 support
 - `cubism4.js` - Only Cubism 4 support
 - `extra.js` - Additional utilities
 
