@@ -1,3 +1,11 @@
+## v1.1.3
+
+[v1.1.2...v1.1.3](https://github.com/Jannchie/pixi-live2d-display/compare/v1.1.2...v1.1.3)
+
+### :adhesive_bandage: Fixes
+
+- **cubism4**: guard clippingManager access && include source map asset - By [Jannchie](mailto:jannchie@gmail.com) in [c97d26a](https://github.com/Jannchie/pixi-live2d-display/commit/c97d26a)
+
 ## v1.1.2
 
 [v1.1.1...v1.1.2](https://github.com/Jannchie/pixi-live2d-display/compare/v1.1.1...v1.1.2)
