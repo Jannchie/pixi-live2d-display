@@ -3,7 +3,7 @@ import type { MotionManagerOptions } from "@/cubism-common/MotionManager";
 import type { Live2DFactoryOptions } from "@/factory/Live2DFactory";
 import { Live2DFactory } from "@/factory/Live2DFactory";
 import type { Renderer, Texture, Ticker, WebGLRenderer } from "pixi.js";
-import { Matrix, ObservablePoint, Point, Container, Rectangle } from "pixi.js";
+import { Assets, Matrix, ObservablePoint, Point, Container, Rectangle } from "pixi.js";
 import { Automator, type AutomatorOptions } from "./Automator";
 import { Live2DTransform } from "./Live2DTransform";
 import type { JSONObject } from "./types/helpers";
@@ -105,6 +105,11 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
      * Pixi textures.
      */
     textures: Texture[] = [];
+
+    /**
+     * Texture asset URLs used with Pixi Assets.
+     */
+    textureUrls: string[] = [];
 
     /** @override */
     transform = new Live2DTransform();
@@ -776,22 +781,60 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
      *  Should it destroy the texture of the child sprite
      * @param [options.baseTexture=false] - Only used for child Sprites if options.children is set to true
      *  Should it destroy the base texture of the child sprite
+     * @param [options.textureSource=false] - PixiJS v8 alias for baseTexture, destroys the texture source
      */
-    destroy(options?: { children?: boolean; texture?: boolean; baseTexture?: boolean }): void {
+    destroy(
+        options?: {
+            children?: boolean;
+            texture?: boolean;
+            baseTexture?: boolean;
+            textureSource?: boolean;
+        } | boolean,
+    ): void {
         this.emit("destroy");
 
-        if (options?.texture) {
-            this.textures.forEach((texture) => texture.destroy(options.baseTexture));
+        const destroyTextures =
+            typeof options === "boolean"
+                ? options
+                : Boolean(options?.texture || options?.baseTexture || options?.textureSource);
+        const destroyTextureSource =
+            typeof options === "boolean"
+                ? options
+                : Boolean(options?.baseTexture ?? options?.textureSource);
+
+        if (destroyTextures) {
+            if (destroyTextureSource && this.textureUrls.length > 0) {
+                const unloadUrls: string[] = [];
+
+                for (let i = 0; i < this.textures.length; i++) {
+                    const texture = this.textures[i];
+                    const url = this.textureUrls[i];
+
+                    if (url && Assets.cache.has(url)) {
+                        unloadUrls.push(url);
+                    } else if (texture) {
+                        texture.destroy(destroyTextureSource);
+                    }
+                }
+
+                if (unloadUrls.length > 0) {
+                    void Assets.unload(unloadUrls).catch((error) => {
+                        logger.warn(this.tag, "Failed to unload textures.", error);
+                    });
+                }
+            } else {
+                this.textures.forEach((texture) => texture.destroy(destroyTextureSource));
+            }
         }
 
         this.automator.destroy();
-        
+
         // Clean up audio resources
         if (this.audioAnalyzer) {
             this.audioAnalyzer.destroy();
             this.audioAnalyzer = null;
         }
-        
+
         if (this.isReady()) {
             this.internalModel.destroy();
         }

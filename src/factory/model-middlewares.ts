@@ -140,12 +140,17 @@ export const setupEssentials: Middleware<Live2DFactoryContext> = async (context,
     if (context.settings) {
         const live2DModel = context.live2dModel;
 
-        const loadingTextures = Promise.all(
-            context.settings.textures.map((tex) => {
-                const url = context.settings!.resolveURL(tex);
-                return createTexture(url, { crossOrigin: context.options.crossOrigin });
-            }),
+        const textureUrls = context.settings.textures.map((tex) =>
+            context.settings!.resolveURL(tex),
         );
+
+        const loadingTextures = Promise.all(
+            textureUrls.map((url) =>
+                createTexture(url, { crossOrigin: context.options.crossOrigin }),
+            ),
+        );
+
+        live2DModel.textureUrls = textureUrls;
 
         // we'll handle the error later (using await), this catch() is to suppress the unhandled rejection warning
         loadingTextures.catch(noop);

@@ -4,7 +4,7 @@ import type { ModelSettings } from "@/cubism-common/ModelSettings";
 import { MotionPriority, MotionState } from "@/cubism-common/MotionState";
 import { SoundManager } from "@/cubism-common/SoundManager";
 import { logger } from "@/utils";
-import { EventEmitter } from "pixi.js";
+import { EventEmitter } from "@pixi/utils";
 import type { JSONObject, Mutable } from "../types/helpers";
 
 export interface MotionManagerOptions {
