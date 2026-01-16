@@ -1,5 +1,5 @@
 import type { InternalModelOptions } from "@/cubism-common";
-import type { CommonHitArea, CommonLayout } from "@/cubism-common/InternalModel";
+import type { BreathParameter, CommonHitArea, CommonLayout } from "@/cubism-common/InternalModel";
 import { InternalModel } from "@/cubism-common/InternalModel";
 import { logger } from "../utils";
 import type { Cubism2ModelSettings } from "./Cubism2ModelSettings";
@@ -16,6 +16,10 @@ const tempMatrixArray = new Float32Array([
     0, 0, 0, 1,
 ]);
 
+interface BreathParameterEntry extends BreathParameter {
+    parameterIndex: number;
+}
+
 export class Cubism2InternalModel extends InternalModel {
     settings: Cubism2ModelSettings;
 
@@ -26,6 +30,10 @@ export class Cubism2InternalModel extends InternalModel {
 
     declare physics?: Live2DPhysics;
     declare pose?: Live2DPose;
+    private breathParameters: BreathParameter[] = [];
+    private breathParameterEntries: BreathParameterEntry[] = [];
+    private breathIntensity = 1;
+    private breathCycleScale = 1;
 
     // parameter indices, cached for better performance
     eyeballXParamIndex: number;
@@ -91,6 +99,14 @@ export class Cubism2InternalModel extends InternalModel {
         }
 
         this.coreModel.saveParam();
+
+        this.setBreathParameters([
+            { parameterId: "PARAM_ANGLE_X", offset: 0, peak: 15, cycle: 6.5345, weight: 0.5 },
+            { parameterId: "PARAM_ANGLE_Y", offset: 0, peak: 8, cycle: 3.5345, weight: 0.5 },
+            { parameterId: "PARAM_ANGLE_Z", offset: 0, peak: 10, cycle: 5.5345, weight: 0.5 },
+            { parameterId: "PARAM_BODY_ANGLE_X", offset: 0, peak: 4, cycle: 15.5345, weight: 0.5 },
+            { parameterId: "PARAM_BREATH", offset: 0.5, peak: 0.5, cycle: 3.2345, weight: 1 },
+        ]);
 
         const arr = this.coreModel.getModelContext()._$aS;
 
@@ -283,14 +299,61 @@ export class Cubism2InternalModel extends InternalModel {
     }
 
     updateNaturalMovements(dt: DOMHighResTimeStamp, now: DOMHighResTimeStamp) {
+        if (!this.breathEnabled) {
+            return;
+        }
+
+        if (this.breathParameterEntries.length === 0) {
+            return;
+        }
+
         const t = (now / 1000) * 2 * Math.PI;
+        const intensity = this.breathIntensity;
+        const cycleScale = this.breathCycleScale;
 
-        this.coreModel.addToParamFloat(this.angleXParamIndex, 15 * Math.sin(t / 6.5345) * 0.5);
-        this.coreModel.addToParamFloat(this.angleYParamIndex, 8 * Math.sin(t / 3.5345) * 0.5);
-        this.coreModel.addToParamFloat(this.angleZParamIndex, 10 * Math.sin(t / 5.5345) * 0.5);
-        this.coreModel.addToParamFloat(this.bodyAngleXParamIndex, 4 * Math.sin(t / 15.5345) * 0.5);
+        for (const parameter of this.breathParameterEntries) {
+            const cycle = Math.max(0.001, parameter.cycle * cycleScale);
+            const value = parameter.offset + parameter.peak * intensity * Math.sin(t / cycle);
+            const weighted = value * (parameter.weight ?? 1);
 
-        this.coreModel.setParamFloat(this.breathParamIndex, 0.5 + 0.5 * Math.sin(t / 3.2345));
+            if (parameter.parameterIndex === this.breathParamIndex) {
+                this.coreModel.setParamFloat(parameter.parameterIndex, weighted);
+            } else {
+                this.coreModel.addToParamFloat(parameter.parameterIndex, weighted);
+            }
+        }
+    }
+
+    override setBreathParameters(parameters: BreathParameter[]): void {
+        this.breathParameters = parameters.map((parameter) => ({
+            parameterId: parameter.parameterId,
+            offset: Number.isFinite(parameter.offset) ? parameter.offset : 0,
+            peak: Number.isFinite(parameter.peak) ? parameter.peak : 0,
+            cycle: Number.isFinite(parameter.cycle) ? Math.max(0.001, parameter.cycle) : 0.001,
+            weight: Number.isFinite(parameter.weight ?? 1) ? (parameter.weight ?? 1) : 1,
+        }));
+
+        const entries: BreathParameterEntry[] = [];
+
+        for (const parameter of this.breathParameters) {
+            const parameterIndex = this.coreModel.getParamIndex(parameter.parameterId);
+            if (parameterIndex < 0) {
+                continue;
+            }
+            entries.push({ ...parameter, parameterIndex });
+        }
+
+        this.breathParameterEntries = entries;
+    }
+
+    override setBreathIntensity(intensity: number): void {
+        const nextIntensity = Number.isFinite(intensity) ? Math.max(0, intensity) : 1;
+        this.breathIntensity = nextIntensity;
+    }
+
+    override setBreathCycle(cycle: number): void {
+        const nextCycle = Number.isFinite(cycle) ? Math.max(0.001, cycle) : 1;
+        this.breathCycleScale = nextCycle;
     }
 
     updateLipSync() {

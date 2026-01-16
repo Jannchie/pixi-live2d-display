@@ -1,4 +1,4 @@
-import type { InternalModel, ModelSettings, MotionPriority } from "@/cubism-common";
+import type { BreathParameter, InternalModel, ModelSettings, MotionPriority } from "@/cubism-common";
 import type { MotionManagerOptions } from "@/cubism-common/MotionManager";
 import type { Live2DFactoryOptions } from "@/factory/Live2DFactory";
 import { Live2DFactory } from "@/factory/Live2DFactory";
@@ -9,7 +9,139 @@ import { Live2DTransform } from "./Live2DTransform";
 import type { JSONObject } from "./types/helpers";
 import { logger, AudioAnalyzer } from "./utils";
 
-export interface Live2DModelOptions extends MotionManagerOptions, AutomatorOptions {}
+export type Live2DModelTransitionEasingName =
+    | "linear"
+    | "easeInQuad"
+    | "easeOutQuad"
+    | "easeInOutQuad"
+    | "easeInCubic"
+    | "easeOutCubic";
+
+export type Live2DModelTransitionEasing =
+    | Live2DModelTransitionEasingName
+    | ((progress: number) => number);
+
+export interface Live2DModelTransitionScale {
+    x?: number;
+    y?: number;
+}
+
+/**
+ * Visual properties supported by transitions.
+ */
+export interface Live2DModelTransitionState {
+    alpha?: number;
+    x?: number;
+    y?: number;
+    rotation?: number;
+    scale?: number | Live2DModelTransitionScale;
+}
+
+export interface Live2DModelTransitionOptions {
+    /**
+     * Transition duration in milliseconds.
+     * @default 500
+     */
+    duration?: number;
+
+    /**
+     * Delay before the transition starts in milliseconds.
+     * @default 0
+     */
+    delay?: number;
+
+    /**
+     * Easing function or preset name.
+     * @default "linear"
+     */
+    easing?: Live2DModelTransitionEasing;
+}
+
+export interface Live2DModelTransitionDefinition extends Live2DModelTransitionOptions {
+    /**
+     * Properties to apply at the beginning of the transition.
+     */
+    from?: Live2DModelTransitionState;
+
+    /**
+     * Properties to apply at the end of the transition.
+     */
+    to?: Live2DModelTransitionState;
+}
+
+export type Live2DModelTransitionToOptions = Omit<Live2DModelTransitionDefinition, "to">;
+
+export type Live2DModelParameterValues = Record<string, number>;
+
+export interface Live2DModelParameterTransitionOptions extends Live2DModelTransitionOptions {}
+
+export interface Live2DModelParameterTransitionDefinition extends Live2DModelParameterTransitionOptions {
+    /**
+     * Parameter values to apply at the beginning of the transition.
+     */
+    from?: Live2DModelParameterValues;
+
+    /**
+     * Parameter values to apply at the end of the transition.
+     */
+    to?: Live2DModelParameterValues;
+}
+
+export type Live2DModelBreathParameter = BreathParameter;
+
+export interface Live2DModelWind {
+    x: number;
+    y: number;
+}
+
+export interface Live2DModelWindTransitionOptions extends Live2DModelTransitionOptions {}
+
+export interface Live2DModelWindTransitionDefinition extends Live2DModelWindTransitionOptions {
+    /**
+     * Wind values to apply at the beginning of the transition.
+     */
+    from?: Live2DModelWind;
+
+    /**
+     * Wind values to apply at the end of the transition.
+     */
+    to?: Live2DModelWind;
+}
+
+export interface Live2DModelFocusTransitionOptions extends Live2DModelTransitionOptions {
+    /**
+     * Apply the target instantly when no transition options are provided.
+     * @default false
+     */
+    instant?: boolean;
+}
+
+export interface Live2DModelTransitionPresets {
+    /**
+     * Preset used by {@link Live2DModel.appear}.
+     */
+    appear?: Live2DModelTransitionDefinition;
+
+    /**
+     * Preset used by {@link Live2DModel.disappear}.
+     */
+    disappear?: Live2DModelTransitionDefinition;
+}
+
+export type Live2DModelAutoTransitionTrigger = "ready" | "load" | "added";
+
+export interface Live2DModelOptions extends MotionManagerOptions, AutomatorOptions {
+    /**
+     * Transition presets for built-in appearance helpers.
+     */
+    transitions?: Live2DModelTransitionPresets;
+
+    /**
+     * Automatically play the appear transition on a lifecycle trigger.
+     * @default false
+     */
+    autoTransition?: Live2DModelAutoTransitionTrigger | boolean;
+}
 
 /**
  * Interface for WebGL context with PixiJS UID extension
@@ -18,8 +150,283 @@ interface WebGLContextWithUID extends WebGL2RenderingContext {
     _pixiContextUID?: number;
 }
 
+interface Live2DCoreModelAccessors {
+    getParameterValueById?: (parameterId: string) => number;
+    setParameterValueById?: (parameterId: string, value: number) => void;
+    getParamFloat?: (parameterId: string) => number;
+    setParamFloat?: (parameterId: string, value: number) => void;
+}
+
+interface Live2DModelWindOptions {
+    wind: Live2DModelWind;
+}
+
+interface Live2DModelWindPhysics {
+    getOption?: () => Live2DModelWindOptions;
+    setOptions?: (options: Live2DModelWindOptions) => void;
+}
+
 const tempPoint = new Point();
 const tempMatrix = new Matrix();
+
+type Live2DModelTransitionEasingFunction = (progress: number) => number;
+
+interface Live2DModelTransitionStateValues {
+    alpha?: number;
+    x?: number;
+    y?: number;
+    rotation?: number;
+    scaleX?: number;
+    scaleY?: number;
+}
+
+interface Live2DModelTransitionSnapshot {
+    alpha: number;
+    x: number;
+    y: number;
+    rotation: number;
+    scaleX: number;
+    scaleY: number;
+}
+
+interface Live2DModelTransitionValue {
+    from: number;
+    to: number;
+}
+
+interface Live2DModelTransitionValues {
+    alpha?: Live2DModelTransitionValue;
+    x?: Live2DModelTransitionValue;
+    y?: Live2DModelTransitionValue;
+    rotation?: Live2DModelTransitionValue;
+    scaleX?: Live2DModelTransitionValue;
+    scaleY?: Live2DModelTransitionValue;
+}
+
+interface Live2DModelActiveTransition {
+    elapsed: number;
+    delay: number;
+    duration: number;
+    easing: Live2DModelTransitionEasingFunction;
+    values: Live2DModelTransitionValues;
+    resolve: () => void;
+}
+
+type Live2DModelParameterTransitionValues = Record<string, Live2DModelTransitionValue>;
+
+interface Live2DModelActiveParameterTransition {
+    elapsed: number;
+    delay: number;
+    duration: number;
+    easing: Live2DModelTransitionEasingFunction;
+    values: Live2DModelParameterTransitionValues;
+    resolve: () => void;
+}
+
+interface Live2DModelActiveFocusTransition {
+    elapsed: number;
+    delay: number;
+    duration: number;
+    easing: Live2DModelTransitionEasingFunction;
+    fromX: number;
+    fromY: number;
+    toX: number;
+    toY: number;
+    resolve: () => void;
+}
+
+interface Live2DModelActiveWindTransition {
+    elapsed: number;
+    delay: number;
+    duration: number;
+    easing: Live2DModelTransitionEasingFunction;
+    fromX: number;
+    fromY: number;
+    toX: number;
+    toY: number;
+    resolve: () => void;
+}
+
+const DEFAULT_TRANSITION_DURATION = 500;
+const DEFAULT_TRANSITION_DELAY = 0;
+const DEFAULT_APPEAR_TRANSITION: Live2DModelTransitionDefinition = {
+    duration: 500,
+    easing: "easeOutQuad",
+    from: { alpha: 0 },
+};
+const DEFAULT_DISAPPEAR_TRANSITION: Live2DModelTransitionDefinition = {
+    duration: 300,
+    easing: "easeInQuad",
+    to: { alpha: 0 },
+};
+const CUBISM4_EYE_PARAM_IDS = {
+    leftOpen: "ParamEyeLOpen",
+    rightOpen: "ParamEyeROpen",
+    ballX: "ParamEyeBallX",
+    ballY: "ParamEyeBallY",
+};
+const CUBISM2_EYE_PARAM_IDS = {
+    leftOpen: "PARAM_EYE_L_OPEN",
+    rightOpen: "PARAM_EYE_R_OPEN",
+    ballX: "PARAM_EYE_BALL_X",
+    ballY: "PARAM_EYE_BALL_Y",
+};
+
+const easingPresets: Record<Live2DModelTransitionEasingName, Live2DModelTransitionEasingFunction> =
+    {
+        linear: (progress) => progress,
+        easeInQuad: (progress) => progress * progress,
+        easeOutQuad: (progress) => progress * (2 - progress),
+        easeInOutQuad: (progress) =>
+            progress < 0.5
+                ? 2 * progress * progress
+                : -1 + (4 - 2 * progress) * progress,
+        easeInCubic: (progress) => progress * progress * progress,
+        easeOutCubic: (progress) => 1 - (1 - progress) ** 3,
+    };
+
+function resolveEasing(
+    easing: Live2DModelTransitionEasing | undefined,
+): Live2DModelTransitionEasingFunction {
+    if (!easing) {
+        return easingPresets.linear;
+    }
+
+    if (typeof easing === "function") {
+        return easing;
+    }
+
+    return easingPresets[easing] ?? easingPresets.linear;
+}
+
+function mergeTransitionDefinition(
+    base: Live2DModelTransitionDefinition | undefined,
+    override: Live2DModelTransitionDefinition | undefined,
+): Live2DModelTransitionDefinition {
+    const merged: Live2DModelTransitionDefinition = { ...base, ...override };
+
+    if (base?.from || override?.from) {
+        merged.from = { ...base?.from, ...override?.from };
+    }
+
+    if (base?.to || override?.to) {
+        merged.to = { ...base?.to, ...override?.to };
+    }
+
+    return merged;
+}
+
+function normalizeTransitionState(
+    state: Live2DModelTransitionState | undefined,
+): Live2DModelTransitionStateValues {
+    if (!state) {
+        return {};
+    }
+
+    const normalized: Live2DModelTransitionStateValues = {
+        alpha: state.alpha,
+        x: state.x,
+        y: state.y,
+        rotation: state.rotation,
+    };
+
+    if (state.scale !== undefined) {
+        if (typeof state.scale === "number") {
+            normalized.scaleX = state.scale;
+            normalized.scaleY = state.scale;
+        } else {
+            if (state.scale.x !== undefined) {
+                normalized.scaleX = state.scale.x;
+            }
+            if (state.scale.y !== undefined) {
+                normalized.scaleY = state.scale.y;
+            }
+        }
+    }
+
+    return normalized;
+}
+
+function buildTransitionValues(
+    current: Live2DModelTransitionSnapshot,
+    from: Live2DModelTransitionStateValues,
+    to: Live2DModelTransitionStateValues,
+): Live2DModelTransitionValues {
+    const values: Live2DModelTransitionValues = {};
+
+    if (from.alpha !== undefined || to.alpha !== undefined) {
+        values.alpha = {
+            from: from.alpha ?? current.alpha,
+            to: to.alpha ?? current.alpha,
+        };
+    }
+    if (from.x !== undefined || to.x !== undefined) {
+        values.x = {
+            from: from.x ?? current.x,
+            to: to.x ?? current.x,
+        };
+    }
+    if (from.y !== undefined || to.y !== undefined) {
+        values.y = {
+            from: from.y ?? current.y,
+            to: to.y ?? current.y,
+        };
+    }
+    if (from.rotation !== undefined || to.rotation !== undefined) {
+        values.rotation = {
+            from: from.rotation ?? current.rotation,
+            to: to.rotation ?? current.rotation,
+        };
+    }
+    if (from.scaleX !== undefined || to.scaleX !== undefined) {
+        values.scaleX = {
+            from: from.scaleX ?? current.scaleX,
+            to: to.scaleX ?? current.scaleX,
+        };
+    }
+    if (from.scaleY !== undefined || to.scaleY !== undefined) {
+        values.scaleY = {
+            from: from.scaleY ?? current.scaleY,
+            to: to.scaleY ?? current.scaleY,
+        };
+    }
+
+    return values;
+}
+
+function buildParameterTransitionValues(
+    current: Record<string, number | undefined>,
+    from: Live2DModelParameterValues | undefined,
+    to: Live2DModelParameterValues | undefined,
+): Live2DModelParameterTransitionValues {
+    const values: Live2DModelParameterTransitionValues = {};
+    const keys = new Set<string>();
+
+    for (const key of Object.keys(from ?? {})) {
+        keys.add(key);
+    }
+    for (const key of Object.keys(to ?? {})) {
+        keys.add(key);
+    }
+
+    for (const key of keys) {
+        const currentValue = current[key];
+        const fromValue = from?.[key] ?? currentValue;
+        const toValue = to?.[key] ?? currentValue;
+
+        if (fromValue === undefined || toValue === undefined) {
+            continue;
+        }
+
+        values[key] = { from: fromValue, to: toValue };
+    }
+
+    return values;
+}
+
+function lerp(from: number, to: number, progress: number): number {
+    return from + (to - from) * progress;
+}
 
 export type Live2DConstructor = { new (options?: Live2DModelOptions): Live2DModel };
 
@@ -142,6 +549,15 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
 
     automator: Automator;
 
+    private transitionPresets: Live2DModelTransitionPresets;
+    private activeTransition: Live2DModelActiveTransition | null = null;
+    private activeParameterTransition: Live2DModelActiveParameterTransition | null = null;
+    private parameterTransitionValues: Live2DModelParameterValues | null = null;
+    private parameterTransitionHandler: (() => void) | null = null;
+    private parameterTransitionAttached = false;
+    private activeFocusTransition: Live2DModelActiveFocusTransition | null = null;
+    private activeWindTransition: Live2DModelActiveWindTransition | null = null;
+
     /**
      * Audio analyzer for speech recognition and lip sync.
      */
@@ -156,11 +572,13 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
         super();
 
         this.automator = new Automator(this, options);
+        this.transitionPresets = options?.transitions ?? {};
 
         // In Pixi.js v8, use onRender callback instead of _render override
         this.onRender = this._onRenderCallback.bind(this);
 
         this.once("modelLoaded", () => this.init(options));
+        this.setupAutoTransition(options);
     }
 
     /**
@@ -192,6 +610,58 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
         
         // Update bounds area now that the internal model is loaded
         this.updateBoundsArea();
+        this.attachParameterTransitionHandler();
+    }
+
+    private setupAutoTransition(options?: Live2DModelOptions): void {
+        const trigger = options?.autoTransition;
+        if (!trigger) {
+            return;
+        }
+
+        const normalizedTrigger: Live2DModelAutoTransitionTrigger =
+            trigger === true ? "load" : trigger;
+        const startTransition = () => {
+            void this.appear();
+        };
+
+        switch (normalizedTrigger) {
+            case "ready":
+                this.once("ready", startTransition);
+                break;
+            case "load":
+                this.once("load", startTransition);
+                break;
+            case "added":
+                this.once("added", startTransition);
+                break;
+        }
+    }
+
+    private attachParameterTransitionHandler(): void {
+        if (!this.internalModel) {
+            return;
+        }
+
+        if (!this.parameterTransitionHandler) {
+            this.parameterTransitionHandler = () => {
+                this.applyParameterTransitionValues();
+            };
+        }
+
+        if (!this.parameterTransitionAttached) {
+            this.internalModel.on("beforeModelUpdate", this.parameterTransitionHandler);
+            this.parameterTransitionAttached = true;
+        }
+    }
+
+    private detachParameterTransitionHandler(): void {
+        if (!this.internalModel || !this.parameterTransitionHandler || !this.parameterTransitionAttached) {
+            return;
+        }
+
+        this.internalModel.off("beforeModelUpdate", this.parameterTransitionHandler);
+        this.parameterTransitionAttached = false;
     }
 
     /**
@@ -213,6 +683,49 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
      */
     hasValidRenderer(): boolean {
         return this.renderer !== undefined && this.renderer.gl instanceof WebGL2RenderingContext;
+    }
+
+    private getCoreModel(): Live2DCoreModelAccessors | null {
+        if (!this.isReady()) {
+            return null;
+        }
+
+        return this.internalModel.coreModel as Live2DCoreModelAccessors;
+    }
+
+    private getWindPhysics(): Live2DModelWindPhysics | null {
+        if (!this.isReady()) {
+            return null;
+        }
+
+        const physics = this.internalModel.physics as Live2DModelWindPhysics | undefined;
+        if (!physics || typeof physics.getOption !== "function" || typeof physics.setOptions !== "function") {
+            return null;
+        }
+
+        const options = physics.getOption();
+        if (!options || typeof options.wind?.x !== "number" || typeof options.wind?.y !== "number") {
+            return null;
+        }
+
+        return physics;
+    }
+
+    private getDefaultEyeParamIds(): typeof CUBISM4_EYE_PARAM_IDS | typeof CUBISM2_EYE_PARAM_IDS | null {
+        const coreModel = this.getCoreModel();
+        if (!coreModel) {
+            return null;
+        }
+
+        if (typeof coreModel.setParameterValueById === "function") {
+            return CUBISM4_EYE_PARAM_IDS;
+        }
+
+        if (typeof coreModel.setParamFloat === "function") {
+            return CUBISM2_EYE_PARAM_IDS;
+        }
+
+        return null;
     }
 
     /**
@@ -294,18 +807,11 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
             : this.internalModel.motionManager.expressionManager.setExpression(id);
     }
 
-    /**
-     * Updates the focus position. This will not cause the model to immediately look at the position,
-     * instead the movement will be interpolated.
-     * @param x - Position in world space.
-     * @param y - Position in world space.
-     * @param instant - Should the focus position be instantly applied.
-     */
-    focus(x: number, y: number, instant: boolean = false): void {
+    private resolveFocusTargetFromWorld(x: number, y: number): { x: number; y: number } | null {
         if (!this.isReady()) {
-            return;
+            return null;
         }
-        
+
         tempPoint.x = x;
         tempPoint.y = y;
 
@@ -317,7 +823,118 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
         const tx = (tempPoint.x / this.internalModel.originalWidth) * 2 - 1;
         const ty = (tempPoint.y / this.internalModel.originalHeight) * 2 - 1;
         const radian = Math.atan2(ty, tx);
-        this.internalModel.focusController.focus(Math.cos(radian), -Math.sin(radian), instant);
+
+        return { x: Math.cos(radian), y: -Math.sin(radian) };
+    }
+
+    /**
+     * Smoothly moves the focus target in normalized space.
+     * @param x - Focus X in range `[-1, 1]`.
+     * @param y - Focus Y in range `[-1, 1]`.
+     * @param options - Transition options.
+     */
+    lookTo(x: number, y: number, options: Live2DModelFocusTransitionOptions = {}): Promise<void> {
+        if (!this.isReady()) {
+            return Promise.resolve();
+        }
+
+        this.stopFocusTransition();
+
+        const hasTransition =
+            options.duration !== undefined ||
+            options.delay !== undefined ||
+            options.easing !== undefined;
+
+        if (!hasTransition) {
+            this.internalModel.focusController.focus(x, y, options.instant ?? false);
+            return Promise.resolve();
+        }
+
+        const duration = Math.max(0, options.duration ?? DEFAULT_TRANSITION_DURATION);
+        const delay = Math.max(0, options.delay ?? DEFAULT_TRANSITION_DELAY);
+        const easing = resolveEasing(options.easing);
+        const fromX = this.internalModel.focusController.x;
+        const fromY = this.internalModel.focusController.y;
+        const toX = x;
+        const toY = y;
+
+        if (duration === 0 && delay === 0) {
+            this.internalModel.focusController.focus(toX, toY, true);
+            return Promise.resolve();
+        }
+
+        return new Promise((resolve) => {
+            const transition: Live2DModelActiveFocusTransition = {
+                elapsed: 0,
+                delay,
+                duration,
+                easing,
+                fromX,
+                fromY,
+                toX,
+                toY,
+                resolve,
+            };
+
+            this.activeFocusTransition = transition;
+            this.applyFocusTransitionProgress(transition, 0);
+        });
+    }
+
+    /**
+     * Smoothly moves the focus target using a world position.
+     * @param x - Position in world space.
+     * @param y - Position in world space.
+     * @param options - Transition options.
+     */
+    lookAt(
+        x: number,
+        y: number,
+        options: Live2DModelFocusTransitionOptions = {},
+    ): Promise<void> {
+        const target = this.resolveFocusTargetFromWorld(x, y);
+        if (!target) {
+            return Promise.resolve();
+        }
+
+        return this.lookTo(target.x, target.y, options);
+    }
+
+    /**
+     * Stops the active focus transition without altering current values.
+     */
+    stopFocusTransition(): void {
+        if (!this.activeFocusTransition) {
+            return;
+        }
+
+        const activeTransition = this.activeFocusTransition;
+        this.activeFocusTransition = null;
+        activeTransition.resolve();
+    }
+
+    /**
+     * Returns whether a focus transition is currently running.
+     */
+    isFocusTransitioning(): boolean {
+        return this.activeFocusTransition !== null;
+    }
+
+    /**
+     * Updates the focus position. This will not cause the model to immediately look at the position,
+     * instead the movement will be interpolated.
+     * @param x - Position in world space.
+     * @param y - Position in world space.
+     * @param instant - Should the focus position be instantly applied.
+     */
+    focus(x: number, y: number, instant: boolean = false): void {
+        const target = this.resolveFocusTargetFromWorld(x, y);
+        if (!target) {
+            return;
+        }
+
+        this.stopFocusTransition();
+        this.internalModel.focusController.focus(target.x, target.y, instant);
     }
 
     /**
@@ -422,10 +1039,452 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
      * @param dt - The elapsed time in milliseconds since last frame.
      */
     update(dt: DOMHighResTimeStamp): void {
+        this.updateTransition(dt);
+        this.updateFocusTransition(dt);
+        this.updateWindTransition(dt);
+        this.updateParameterTransition(dt);
         this.deltaTime += dt;
         this.elapsedTime += dt;
 
         // don't call `this.internalModel.update()` here, because it requires WebGL context
+    }
+
+    /**
+     * Starts a transition. Transitions are updated by {@link Live2DModel.update}.
+     */
+    transition(definition: Live2DModelTransitionDefinition): Promise<void> {
+        const current = this.captureTransitionSnapshot();
+        const from = normalizeTransitionState(definition.from);
+        const to = normalizeTransitionState(definition.to);
+        const values = buildTransitionValues(current, from, to);
+        const hasValues =
+            values.alpha !== undefined ||
+            values.x !== undefined ||
+            values.y !== undefined ||
+            values.rotation !== undefined ||
+            values.scaleX !== undefined ||
+            values.scaleY !== undefined;
+
+        if (!hasValues) {
+            return Promise.resolve();
+        }
+
+        const duration = Math.max(
+            0,
+            definition.duration ?? DEFAULT_TRANSITION_DURATION,
+        );
+        const delay = Math.max(0, definition.delay ?? DEFAULT_TRANSITION_DELAY);
+        const easing = resolveEasing(definition.easing);
+
+        this.stopTransition();
+
+        if (duration === 0 && delay === 0) {
+            this.applyTransitionProgress(values, 1);
+            return Promise.resolve();
+        }
+
+        this.applyTransitionProgress(values, 0);
+
+        return new Promise((resolve) => {
+            this.activeTransition = {
+                elapsed: 0,
+                delay,
+                duration,
+                easing,
+                values,
+                resolve,
+            };
+        });
+    }
+
+    /**
+     * Convenience helper to transition to target properties.
+     */
+    transitionTo(
+        to: Live2DModelTransitionState,
+        options: Live2DModelTransitionToOptions = {},
+    ): Promise<void> {
+        return this.transition({ ...options, to });
+    }
+
+    /**
+     * Plays the appear transition preset.
+     */
+    appear(options?: Live2DModelTransitionDefinition): Promise<void> {
+        const merged = mergeTransitionDefinition(
+            DEFAULT_APPEAR_TRANSITION,
+            mergeTransitionDefinition(this.transitionPresets.appear, options),
+        );
+        return this.transition(merged);
+    }
+
+    /**
+     * Plays the disappear transition preset.
+     */
+    disappear(options?: Live2DModelTransitionDefinition): Promise<void> {
+        const merged = mergeTransitionDefinition(
+            DEFAULT_DISAPPEAR_TRANSITION,
+            mergeTransitionDefinition(this.transitionPresets.disappear, options),
+        );
+        return this.transition(merged);
+    }
+
+    /**
+     * Stops the active transition without altering current values.
+     */
+    stopTransition(): void {
+        if (!this.activeTransition) {
+            return;
+        }
+
+        const activeTransition = this.activeTransition;
+        this.activeTransition = null;
+        activeTransition.resolve();
+    }
+
+    /**
+     * Returns whether a transition is currently running.
+     */
+    isTransitioning(): boolean {
+        return this.activeTransition !== null;
+    }
+
+    private updateTransition(dt: DOMHighResTimeStamp): void {
+        const activeTransition = this.activeTransition;
+        if (!activeTransition) {
+            return;
+        }
+
+        activeTransition.elapsed += dt;
+        if (activeTransition.elapsed < activeTransition.delay) {
+            return;
+        }
+
+        const elapsed = activeTransition.elapsed - activeTransition.delay;
+        const progress =
+            activeTransition.duration === 0
+                ? 1
+                : Math.min(1, elapsed / activeTransition.duration);
+        const eased = activeTransition.easing(progress);
+
+        this.applyTransitionProgress(activeTransition.values, eased);
+
+        if (progress >= 1) {
+            this.activeTransition = null;
+            activeTransition.resolve();
+        }
+    }
+
+    private captureTransitionSnapshot(): Live2DModelTransitionSnapshot {
+        return {
+            alpha: this.alpha,
+            x: this.x,
+            y: this.y,
+            rotation: this.rotation,
+            scaleX: this.scale.x,
+            scaleY: this.scale.y,
+        };
+    }
+
+    private applyTransitionProgress(
+        values: Live2DModelTransitionValues,
+        progress: number,
+    ): void {
+        if (values.alpha) {
+            this.alpha = lerp(values.alpha.from, values.alpha.to, progress);
+        }
+        if (values.x) {
+            this.x = lerp(values.x.from, values.x.to, progress);
+        }
+        if (values.y) {
+            this.y = lerp(values.y.from, values.y.to, progress);
+        }
+        if (values.rotation) {
+            this.rotation = lerp(values.rotation.from, values.rotation.to, progress);
+        }
+        if (values.scaleX) {
+            this.scale.x = lerp(values.scaleX.from, values.scaleX.to, progress);
+        }
+        if (values.scaleY) {
+            this.scale.y = lerp(values.scaleY.from, values.scaleY.to, progress);
+        }
+    }
+
+    /**
+     * Gets a parameter value by ID.
+     */
+    getParameterValue(parameterId: string): number | undefined {
+        const coreModel = this.getCoreModel();
+        if (!coreModel) {
+            return;
+        }
+
+        if (typeof coreModel.getParameterValueById === "function") {
+            return coreModel.getParameterValueById(parameterId);
+        }
+
+        if (typeof coreModel.getParamFloat === "function") {
+            return coreModel.getParamFloat(parameterId);
+        }
+    }
+
+    /**
+     * Sets a parameter value by ID.
+     */
+    setParameterValue(parameterId: string, value: number): void {
+        const coreModel = this.getCoreModel();
+        if (!coreModel) {
+            return;
+        }
+
+        if (typeof coreModel.setParameterValueById === "function") {
+            coreModel.setParameterValueById(parameterId, value);
+            return;
+        }
+
+        if (typeof coreModel.setParamFloat === "function") {
+            coreModel.setParamFloat(parameterId, value);
+        }
+    }
+
+    /**
+     * Sets multiple parameter values by ID.
+     */
+    setParameterValues(values: Live2DModelParameterValues): void {
+        for (const [parameterId, value] of Object.entries(values)) {
+            this.setParameterValue(parameterId, value);
+        }
+    }
+
+    /**
+     * Starts a parameter transition.
+     */
+    transitionParameters(
+        definition: Live2DModelParameterTransitionDefinition,
+    ): Promise<void> {
+        if (!this.isReady()) {
+            return Promise.resolve();
+        }
+
+        const from = definition.from;
+        const to = definition.to;
+        const current: Record<string, number | undefined> = {};
+
+        for (const parameterId of new Set([
+            ...Object.keys(from ?? {}),
+            ...Object.keys(to ?? {}),
+        ])) {
+            current[parameterId] = this.getParameterValue(parameterId);
+        }
+
+        const values = buildParameterTransitionValues(current, from, to);
+        const entries = Object.entries(values);
+
+        if (entries.length === 0) {
+            return Promise.resolve();
+        }
+
+        const duration = Math.max(
+            0,
+            definition.duration ?? DEFAULT_TRANSITION_DURATION,
+        );
+        const delay = Math.max(0, definition.delay ?? DEFAULT_TRANSITION_DELAY);
+        const easing = resolveEasing(definition.easing);
+
+        this.stopParameterTransition();
+
+        if (duration === 0 && delay === 0) {
+            this.parameterTransitionValues = this.computeParameterTransitionValues(values, 1);
+            this.setParameterValues(this.parameterTransitionValues);
+            return Promise.resolve();
+        }
+
+        this.parameterTransitionValues = this.computeParameterTransitionValues(values, 0);
+        this.setParameterValues(this.parameterTransitionValues);
+
+        return new Promise((resolve) => {
+            this.activeParameterTransition = {
+                elapsed: 0,
+                delay,
+                duration,
+                easing,
+                values,
+                resolve,
+            };
+        });
+    }
+
+    /**
+     * Convenience helper to transition parameters to target values.
+     */
+    transitionParametersTo(
+        values: Live2DModelParameterValues,
+        options: Live2DModelParameterTransitionOptions = {},
+    ): Promise<void> {
+        return this.transitionParameters({ ...options, to: values });
+    }
+
+    /**
+     * Stops the active parameter transition without altering current values.
+     */
+    stopParameterTransition(): void {
+        if (!this.activeParameterTransition) {
+            return;
+        }
+
+        const activeTransition = this.activeParameterTransition;
+        this.activeParameterTransition = null;
+        this.parameterTransitionValues = null;
+        activeTransition.resolve();
+    }
+
+    /**
+     * Returns whether a parameter transition is currently running.
+     */
+    isParameterTransitioning(): boolean {
+        return this.activeParameterTransition !== null;
+    }
+
+    private updateParameterTransition(dt: DOMHighResTimeStamp): void {
+        const activeTransition = this.activeParameterTransition;
+        if (!activeTransition) {
+            return;
+        }
+
+        activeTransition.elapsed += dt;
+        if (activeTransition.elapsed < activeTransition.delay) {
+            this.parameterTransitionValues = this.computeParameterTransitionValues(
+                activeTransition.values,
+                0,
+            );
+            return;
+        }
+
+        const elapsed = activeTransition.elapsed - activeTransition.delay;
+        const progress =
+            activeTransition.duration === 0
+                ? 1
+                : Math.min(1, elapsed / activeTransition.duration);
+        const eased = activeTransition.easing(progress);
+
+        this.parameterTransitionValues = this.computeParameterTransitionValues(
+            activeTransition.values,
+            eased,
+        );
+
+        if (progress >= 1) {
+            this.activeParameterTransition = null;
+            activeTransition.resolve();
+        }
+    }
+
+    private computeParameterTransitionValues(
+        values: Live2DModelParameterTransitionValues,
+        progress: number,
+    ): Live2DModelParameterValues {
+        const result: Live2DModelParameterValues = {};
+
+        for (const [parameterId, value] of Object.entries(values)) {
+            result[parameterId] = lerp(value.from, value.to, progress);
+        }
+
+        return result;
+    }
+
+    private applyParameterTransitionValues(): void {
+        if (!this.parameterTransitionValues) {
+            return;
+        }
+
+        this.setParameterValues(this.parameterTransitionValues);
+
+        if (!this.activeParameterTransition) {
+            this.parameterTransitionValues = null;
+        }
+    }
+
+    private updateFocusTransition(dt: DOMHighResTimeStamp): void {
+        const activeTransition = this.activeFocusTransition;
+        if (!activeTransition || !this.isReady()) {
+            return;
+        }
+
+        activeTransition.elapsed += dt;
+        if (activeTransition.elapsed < activeTransition.delay) {
+            this.applyFocusTransitionProgress(activeTransition, 0);
+            return;
+        }
+
+        const elapsed = activeTransition.elapsed - activeTransition.delay;
+        const progress =
+            activeTransition.duration === 0
+                ? 1
+                : Math.min(1, elapsed / activeTransition.duration);
+        const eased = activeTransition.easing(progress);
+
+        this.applyFocusTransitionProgress(activeTransition, eased);
+
+        if (progress >= 1) {
+            this.activeFocusTransition = null;
+            activeTransition.resolve();
+        }
+    }
+
+    private applyFocusTransitionProgress(
+        transition: Live2DModelActiveFocusTransition,
+        progress: number,
+    ): void {
+        if (!this.isReady()) {
+            return;
+        }
+
+        const x = lerp(transition.fromX, transition.toX, progress);
+        const y = lerp(transition.fromY, transition.toY, progress);
+
+        this.internalModel.focusController.focus(x, y, true);
+    }
+
+    private updateWindTransition(dt: DOMHighResTimeStamp): void {
+        const activeTransition = this.activeWindTransition;
+        if (!activeTransition || !this.isReady()) {
+            return;
+        }
+
+        const physics = this.getWindPhysics();
+        if (!physics) {
+            return;
+        }
+
+        activeTransition.elapsed += dt;
+        if (activeTransition.elapsed < activeTransition.delay) {
+            this.applyWindTransitionProgress(activeTransition, 0, physics);
+            return;
+        }
+
+        const elapsed = activeTransition.elapsed - activeTransition.delay;
+        const progress =
+            activeTransition.duration === 0
+                ? 1
+                : Math.min(1, elapsed / activeTransition.duration);
+        const eased = activeTransition.easing(progress);
+
+        this.applyWindTransitionProgress(activeTransition, eased, physics);
+
+        if (progress >= 1) {
+            this.activeWindTransition = null;
+            activeTransition.resolve();
+        }
+    }
+
+    private applyWindTransitionProgress(
+        transition: Live2DModelActiveWindTransition,
+        progress: number,
+        physics: Live2DModelWindPhysics,
+    ): void {
+        const options = physics.getOption();
+        options.wind.x = lerp(transition.fromX, transition.toX, progress);
+        options.wind.y = lerp(transition.fromY, transition.toY, progress);
+        physics.setOptions(options);
     }
 
     // In Pixi.js v8, onRender callback doesn't receive renderer parameter
@@ -646,6 +1705,194 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
     }
 
     /**
+     * Sets whether breathing effects are enabled.
+     * @param enabled - Whether to enable breathing effects.
+     */
+    setBreathEnabled(enabled: boolean): void {
+        if (this.isReady()) {
+            this.internalModel.setBreathEnabled(enabled);
+        }
+    }
+
+    /**
+     * Gets whether breathing effects are enabled.
+     * @return Whether breathing effects are enabled.
+     */
+    isBreathEnabled(): boolean {
+        return this.isReady() ? this.internalModel.isBreathEnabled() : true;
+    }
+
+    /**
+     * Sets base breathing parameters used by natural movements.
+     * @param parameters - Parameters describing the breathing curve.
+     */
+    setBreathParameters(parameters: Live2DModelBreathParameter[]): void {
+        if (this.isReady()) {
+            this.internalModel.setBreathParameters(parameters);
+        }
+    }
+
+    /**
+     * Sets breathing intensity multiplier.
+     * @param intensity - Intensity multiplier.
+     */
+    setBreathIntensity(intensity: number): void {
+        if (this.isReady()) {
+            this.internalModel.setBreathIntensity(intensity);
+        }
+    }
+
+    /**
+     * Sets breathing cycle multiplier.
+     * @param cycle - Cycle multiplier applied to base parameters.
+     */
+    setBreathCycle(cycle: number): void {
+        if (this.isReady()) {
+            this.internalModel.setBreathCycle(cycle);
+        }
+    }
+
+    /**
+     * Checks whether wind control is supported.
+     */
+    isWindSupported(): boolean {
+        return this.getWindPhysics() !== null;
+    }
+
+    /**
+     * Sets the wind vector for physics.
+     * @param x - Wind X.
+     * @param y - Wind Y.
+     */
+    setWind(x: number, y: number): void {
+        const physics = this.getWindPhysics();
+        if (!physics) {
+            return;
+        }
+
+        const options = physics.getOption();
+        options.wind.x = x;
+        options.wind.y = y;
+        physics.setOptions(options);
+    }
+
+    /**
+     * Gets the current wind vector.
+     * @return Wind vector or null when unsupported.
+     */
+    getWind(): Live2DModelWind | null {
+        const physics = this.getWindPhysics();
+        if (!physics) {
+            return null;
+        }
+
+        const options = physics.getOption();
+        return { x: options.wind.x, y: options.wind.y };
+    }
+
+    /**
+     * Smoothly transitions the wind vector.
+     */
+    transitionWind(definition: Live2DModelWindTransitionDefinition): Promise<void> {
+        if (!this.getWindPhysics()) {
+            return Promise.resolve();
+        }
+
+        const current = this.getWind() ?? { x: 0, y: 0 };
+        const from = definition.from ?? current;
+        const to = definition.to ?? current;
+
+        const duration = Math.max(
+            0,
+            definition.duration ?? DEFAULT_TRANSITION_DURATION,
+        );
+        const delay = Math.max(0, definition.delay ?? DEFAULT_TRANSITION_DELAY);
+        const easing = resolveEasing(definition.easing);
+
+        this.stopWindTransition();
+
+        if (duration === 0 && delay === 0) {
+            this.setWind(to.x, to.y);
+            return Promise.resolve();
+        }
+
+        this.setWind(from.x, from.y);
+
+        return new Promise((resolve) => {
+            this.activeWindTransition = {
+                elapsed: 0,
+                delay,
+                duration,
+                easing,
+                fromX: from.x,
+                fromY: from.y,
+                toX: to.x,
+                toY: to.y,
+                resolve,
+            };
+        });
+    }
+
+    /**
+     * Convenience helper to transition wind to target values.
+     */
+    windTo(
+        x: number,
+        y: number,
+        options: Live2DModelWindTransitionOptions = {},
+    ): Promise<void> {
+        return this.transitionWind({ ...options, to: { x, y } });
+    }
+
+    /**
+     * Stops the active wind transition without altering current values.
+     */
+    stopWindTransition(): void {
+        if (!this.activeWindTransition) {
+            return;
+        }
+
+        const activeTransition = this.activeWindTransition;
+        this.activeWindTransition = null;
+        activeTransition.resolve();
+    }
+
+    /**
+     * Returns whether a wind transition is currently running.
+     */
+    isWindTransitioning(): boolean {
+        return this.activeWindTransition !== null;
+    }
+
+    /**
+     * Smoothly sets the eye open value (both eyes).
+     * @param value - Eye open value, usually in range `[0, 1]`.
+     * @param options - Transition options.
+     */
+    eyeOpen(value: number, options: Live2DModelParameterTransitionOptions = {}): Promise<void> {
+        const paramIds = this.getDefaultEyeParamIds();
+        if (!paramIds) {
+            return Promise.resolve();
+        }
+
+        return this.transitionParametersTo(
+            {
+                [paramIds.leftOpen]: value,
+                [paramIds.rightOpen]: value,
+            },
+            options,
+        );
+    }
+
+    /**
+     * Smoothly closes both eyes.
+     * @param options - Transition options.
+     */
+    eyeClose(options: Live2DModelParameterTransitionOptions = {}): Promise<void> {
+        return this.eyeOpen(0, options);
+    }
+
+    /**
      * Start speaking with base64 audio data or audio URL.
      * @param audioData - Base64 audio data or audio URL
      * @param options - Speaking options
@@ -791,6 +2038,11 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
             textureSource?: boolean;
         } | boolean,
     ): void {
+        this.stopTransition();
+        this.stopParameterTransition();
+        this.stopFocusTransition();
+        this.stopWindTransition();
+        this.detachParameterTransitionHandler();
         this.emit("destroy");
 
         const destroyTextures =

@@ -686,6 +686,251 @@ function setupFocusControls(model: Live2DModel) {
     focusControlsPanel = focusPanel;
 }
 
+function setupEnvironmentControls(model: Live2DModel): { panel: HTMLElement; cleanup: () => void } {
+    const environmentPanel = document.createElement("div");
+    environmentPanel.style.cssText = `
+        position: fixed;
+        top: 20px;
+        left: 320px;
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        font-family: Arial, sans-serif;
+        z-index: 1000;
+        min-width: 220px;
+    `;
+
+    const title = document.createElement("h3");
+    title.textContent = "Environment";
+    title.style.cssText = "margin: 0 0 15px 0; color: #fff;";
+
+    const breathTitle = document.createElement("p");
+    breathTitle.textContent = "Breathing";
+    breathTitle.style.cssText = "margin: 0 0 10px 0; font-size: 14px;";
+
+    const breathButton = document.createElement("button");
+    breathButton.style.cssText = `
+        display: block;
+        margin: 5px 0 15px 0;
+        padding: 8px 16px;
+        font-size: 14px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        color: white;
+    `;
+
+    const updateBreathButton = () => {
+        const enabled = model.isBreathEnabled();
+        breathButton.textContent = enabled ? "Disable Breathing" : "Enable Breathing";
+        breathButton.style.background = enabled ? "#dc3545" : "#28a745";
+    };
+
+    model.setBreathEnabled(true);
+    updateBreathButton();
+
+    breathButton.onclick = () => {
+        model.setBreathEnabled(!model.isBreathEnabled());
+        updateBreathButton();
+    };
+
+    const windTitle = document.createElement("p");
+    windTitle.textContent = "Wind";
+    windTitle.style.cssText = "margin: 10px 0 5px 0; font-size: 14px;";
+
+    const windStatus = document.createElement("div");
+    windStatus.style.cssText = "font-size: 12px; color: #aaa; margin-bottom: 10px;";
+
+    const windSupported = model.isWindSupported();
+    windStatus.textContent = windSupported
+        ? "Wind available (Cubism 4 physics)"
+        : "Wind not supported by this model";
+
+    const windToggle = document.createElement("button");
+    windToggle.style.cssText = `
+        display: block;
+        margin: 5px 0 10px 0;
+        padding: 8px 16px;
+        font-size: 14px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        color: white;
+    `;
+
+    const windXContainer = document.createElement("div");
+    windXContainer.innerHTML = `
+        <label style="font-size: 12px;">Wind X: <span id="windX">0</span></label>
+    `;
+
+    const windXSlider = document.createElement("input");
+    windXSlider.type = "range";
+    windXSlider.min = "-1";
+    windXSlider.max = "1";
+    windXSlider.step = "0.05";
+    windXSlider.value = "0";
+    windXSlider.style.cssText = `
+        width: 180px;
+        display: block;
+        margin: 5px 0 10px 0;
+    `;
+
+    const windYContainer = document.createElement("div");
+    windYContainer.innerHTML = `
+        <label style="font-size: 12px;">Wind Y: <span id="windY">0</span></label>
+    `;
+
+    const windYSlider = document.createElement("input");
+    windYSlider.type = "range";
+    windYSlider.min = "-1";
+    windYSlider.max = "1";
+    windYSlider.step = "0.05";
+    windYSlider.value = "0";
+    windYSlider.style.cssText = `
+        width: 180px;
+        display: block;
+        margin: 5px 0 10px 0;
+    `;
+
+    const windXDisplay = windXContainer.querySelector("#windX") as HTMLSpanElement;
+    const windYDisplay = windYContainer.querySelector("#windY") as HTMLSpanElement;
+
+    const windStrengthContainer = document.createElement("div");
+    windStrengthContainer.innerHTML = `
+        <label style="font-size: 12px;">Auto Strength: <span id="windStrength">0.6</span></label>
+    `;
+
+    const windStrengthSlider = document.createElement("input");
+    windStrengthSlider.type = "range";
+    windStrengthSlider.min = "0";
+    windStrengthSlider.max = "1";
+    windStrengthSlider.step = "0.05";
+    windStrengthSlider.value = "0.6";
+    windStrengthSlider.style.cssText = `
+        width: 180px;
+        display: block;
+        margin: 5px 0 10px 0;
+    `;
+
+    const windStrengthDisplay = windStrengthContainer.querySelector(
+        "#windStrength",
+    ) as HTMLSpanElement;
+
+    let windInterval: number | null = null;
+    let windAngle = 0;
+
+    const windStepMs = 200;
+    const applyWind = (x: number, y: number) => {
+        if (!windSupported) {
+            return;
+        }
+        void model.windTo(x, y, { duration: windStepMs, easing: "linear" });
+        windXSlider.value = x.toFixed(2);
+        windYSlider.value = y.toFixed(2);
+        windXDisplay.textContent = x.toFixed(2);
+        windYDisplay.textContent = y.toFixed(2);
+    };
+
+    const startWindAuto = () => {
+        if (!windSupported || windInterval !== null) {
+            return;
+        }
+        windInterval = window.setInterval(() => {
+            windAngle += 0.35;
+            const strength = parseFloat(windStrengthSlider.value);
+            const x = Math.cos(windAngle) * strength;
+            const y = Math.sin(windAngle) * strength * 0.6;
+            applyWind(x, y);
+        }, windStepMs);
+        windToggle.textContent = "Disable Auto Wind";
+        windToggle.style.background = "#dc3545";
+        windXSlider.disabled = true;
+        windYSlider.disabled = true;
+    };
+
+    const stopWindAuto = () => {
+        if (windInterval === null) {
+            return;
+        }
+        clearInterval(windInterval);
+        windInterval = null;
+        windToggle.textContent = "Enable Auto Wind";
+        windToggle.style.background = "#28a745";
+        windXSlider.disabled = false;
+        windYSlider.disabled = false;
+    };
+
+    windToggle.onclick = () => {
+        if (windInterval) {
+            stopWindAuto();
+            applyWind(0, 0);
+        } else {
+            startWindAuto();
+        }
+    };
+
+    windXSlider.oninput = () => {
+        if (windInterval) {
+            return;
+        }
+        const x = parseFloat(windXSlider.value);
+        const y = parseFloat(windYSlider.value);
+        applyWind(x, y);
+    };
+
+    windYSlider.oninput = () => {
+        if (windInterval) {
+            return;
+        }
+        const x = parseFloat(windXSlider.value);
+        const y = parseFloat(windYSlider.value);
+        applyWind(x, y);
+    };
+
+    windStrengthSlider.oninput = () => {
+        windStrengthDisplay.textContent = parseFloat(windStrengthSlider.value).toFixed(2);
+    };
+
+    if (!windSupported) {
+        windToggle.textContent = "Auto Wind Unavailable";
+        windToggle.style.background = "#6c757d";
+        windToggle.disabled = true;
+        windXSlider.disabled = true;
+        windYSlider.disabled = true;
+        windStrengthSlider.disabled = true;
+    } else {
+        windToggle.textContent = "Disable Auto Wind";
+        windToggle.style.background = "#dc3545";
+        startWindAuto();
+    }
+
+    environmentPanel.appendChild(title);
+    environmentPanel.appendChild(breathTitle);
+    environmentPanel.appendChild(breathButton);
+    environmentPanel.appendChild(windTitle);
+    environmentPanel.appendChild(windStatus);
+    environmentPanel.appendChild(windToggle);
+    environmentPanel.appendChild(windXContainer);
+    environmentPanel.appendChild(windXSlider);
+    environmentPanel.appendChild(windYContainer);
+    environmentPanel.appendChild(windYSlider);
+    environmentPanel.appendChild(windStrengthContainer);
+    environmentPanel.appendChild(windStrengthSlider);
+
+    document.body.appendChild(environmentPanel);
+
+    return {
+        panel: environmentPanel,
+        cleanup: () => {
+            if (windInterval) {
+                clearInterval(windInterval);
+                windInterval = null;
+            }
+        },
+    };
+}
+
 function setupModelSelector() {
     // Create model selector panel
     const selectorPanel = document.createElement('div');
@@ -835,6 +1080,8 @@ function updateModelInfo(infoElement: HTMLElement) {
 
 let lipSyncControlsPanel: HTMLElement | null = null;
 let focusControlsPanel: HTMLElement | null = null;
+let environmentControlsPanel: HTMLElement | null = null;
+let environmentControlsCleanup: (() => void) | null = null;
 
 function updateControlsForModel(model: Live2DModel) {
     // Remove existing control panels
@@ -846,10 +1093,21 @@ function updateControlsForModel(model: Live2DModel) {
         document.body.removeChild(focusControlsPanel);
         focusControlsPanel = null;
     }
+    if (environmentControlsPanel) {
+        document.body.removeChild(environmentControlsPanel);
+        environmentControlsPanel = null;
+    }
+    if (environmentControlsCleanup) {
+        environmentControlsCleanup();
+        environmentControlsCleanup = null;
+    }
     
     // Create new control panels for the model
     setupLipSyncControls(model);
     setupFocusControls(model);
+    const environmentControls = setupEnvironmentControls(model);
+    environmentControlsPanel = environmentControls.panel;
+    environmentControlsCleanup = environmentControls.cleanup;
     
     // Update model selector info
     const selectorPanel = (window as any).modelSelectorPanel;

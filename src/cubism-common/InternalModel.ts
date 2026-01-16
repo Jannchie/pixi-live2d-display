@@ -31,6 +31,14 @@ export interface CommonHitArea {
     index: number;
 }
 
+export interface BreathParameter {
+    parameterId: string;
+    offset: number;
+    peak: number;
+    cycle: number;
+    weight?: number;
+}
+
 export interface Bounds {
     x: number;
     y: number;
@@ -133,6 +141,11 @@ export abstract class InternalModel extends EventEmitter {
      * Flags whether auto eye blinking is enabled.
      */
     eyeBlinkEnabled = true;
+
+    /**
+     * Flags whether breathing effects are enabled.
+     */
+    breathEnabled = true;
 
     /**
      * Should be called in the constructor of derived class.
@@ -312,6 +325,40 @@ export abstract class InternalModel extends EventEmitter {
     isEyeBlinkEnabled(): boolean {
         return this.eyeBlinkEnabled;
     }
+
+    /**
+     * Enables or disables breathing effects.
+     * @param enabled - Whether to enable breathing effects.
+     */
+    setBreathEnabled(enabled: boolean): void {
+        this.breathEnabled = enabled;
+    }
+
+    /**
+     * Gets current breathing enabled state.
+     * @return Whether breathing effects are enabled.
+     */
+    isBreathEnabled(): boolean {
+        return this.breathEnabled;
+    }
+
+    /**
+     * Sets base breathing parameters used by natural movements.
+     * @param parameters - Parameters describing the breathing curve.
+     */
+    abstract setBreathParameters(parameters: BreathParameter[]): void;
+
+    /**
+     * Sets breathing intensity multiplier.
+     * @param intensity - Intensity multiplier.
+     */
+    abstract setBreathIntensity(intensity: number): void;
+
+    /**
+     * Sets breathing cycle multiplier.
+     * @param cycle - Cycle multiplier.
+     */
+    abstract setBreathCycle(cycle: number): void;
 
     /**
      * Destroys the model and all related resources.

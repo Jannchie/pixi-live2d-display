@@ -1,5 +1,5 @@
 import type { InternalModelOptions } from "@/cubism-common";
-import type { CommonHitArea, CommonLayout } from "@/cubism-common/InternalModel";
+import type { BreathParameter, CommonHitArea, CommonLayout } from "@/cubism-common/InternalModel";
 import { InternalModel } from "@/cubism-common/InternalModel";
 import type { Cubism4ModelSettings } from "@/cubism4/Cubism4ModelSettings";
 import { Cubism4MotionManager } from "@/cubism4/Cubism4MotionManager";
@@ -36,6 +36,9 @@ export class Cubism4InternalModel extends InternalModel {
 
     breath = CubismBreath.create();
     eyeBlink?: CubismEyeBlink;
+    private breathBaseParameters: BreathParameter[] = [];
+    private breathIntensity = 1;
+    private breathCycleScale = 1;
 
     declare pose?: CubismPose;
     declare physics?: CubismPhysics;
@@ -86,12 +89,12 @@ export class Cubism4InternalModel extends InternalModel {
         this.eyeBlink?.setBlinkingSetting(0.1, 0.1, 0.2);
         this.eyeBlink?.setBlinkingInterval(5);
         this.eyeBlink?.setParameterIds([ParamEyeROpen, ParamEyeLOpen]);
-        this.breath.setParameters([
-            new BreathParameterData(this.idParamAngleX, 0.0, 15.0, 6.5345, 0.5),
-            new BreathParameterData(this.idParamAngleY, 0.0, 8.0, 3.5345, 0.5),
-            new BreathParameterData(this.idParamAngleZ, 0.0, 10.0, 5.5345, 0.5),
-            new BreathParameterData(this.idParamBodyAngleX, 0.0, 4.0, 15.5345, 0.5),
-            new BreathParameterData(this.idParamBreath, 0.0, 0.5, 3.2345, 0.5),
+        this.setBreathParameters([
+            { parameterId: this.idParamAngleX, offset: 0, peak: 15, cycle: 6.5345, weight: 0.5 },
+            { parameterId: this.idParamAngleY, offset: 0, peak: 8, cycle: 3.5345, weight: 0.5 },
+            { parameterId: this.idParamAngleZ, offset: 0, peak: 10, cycle: 5.5345, weight: 0.5 },
+            { parameterId: this.idParamBodyAngleX, offset: 0, peak: 4, cycle: 15.5345, weight: 0.5 },
+            { parameterId: this.idParamBreath, offset: 0, peak: 0.5, cycle: 3.2345, weight: 0.5 },
         ]);
 
         this.renderer.initialize(this.coreModel);
@@ -119,6 +122,48 @@ export class Cubism4InternalModel extends InternalModel {
         }
 
         return layout;
+    }
+
+    override setBreathParameters(parameters: BreathParameter[]): void {
+        this.breathBaseParameters = parameters.map((parameter) => ({
+            parameterId: parameter.parameterId,
+            offset: Number.isFinite(parameter.offset) ? parameter.offset : 0,
+            peak: Number.isFinite(parameter.peak) ? parameter.peak : 0,
+            cycle: Number.isFinite(parameter.cycle) ? Math.max(0.001, parameter.cycle) : 0.001,
+            weight: Number.isFinite(parameter.weight ?? 1) ? (parameter.weight ?? 1) : 1,
+        }));
+        this.applyBreathParameters();
+    }
+
+    override setBreathIntensity(intensity: number): void {
+        const nextIntensity = Number.isFinite(intensity) ? Math.max(0, intensity) : 1;
+        this.breathIntensity = nextIntensity;
+        this.applyBreathParameters();
+    }
+
+    override setBreathCycle(cycle: number): void {
+        const nextCycle = Number.isFinite(cycle) ? Math.max(0.001, cycle) : 1;
+        this.breathCycleScale = nextCycle;
+        this.applyBreathParameters();
+    }
+
+    private applyBreathParameters(): void {
+        if (this.breathBaseParameters.length === 0) {
+            return;
+        }
+
+        const parameters = this.breathBaseParameters.map(
+            (parameter) =>
+                new BreathParameterData(
+                    parameter.parameterId,
+                    parameter.offset,
+                    parameter.peak * this.breathIntensity,
+                    parameter.cycle * this.breathCycleScale,
+                    parameter.weight ?? 1,
+                ),
+        );
+
+        this.breath.setParameters(parameters);
     }
 
     protected setupLayout() {
@@ -270,7 +315,9 @@ export class Cubism4InternalModel extends InternalModel {
     }
 
     updateNaturalMovements(dt: DOMHighResTimeStamp, now: DOMHighResTimeStamp) {
-        this.breath?.updateParameters(this.coreModel, dt / 1000);
+        if (this.breathEnabled) {
+            this.breath?.updateParameters(this.coreModel, dt / 1000);
+        }
         if (this.eyeBlinkEnabled) {
             this.eyeBlink?.updateParameters(this.coreModel, dt / 1000);
         }

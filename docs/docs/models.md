@@ -118,6 +118,29 @@ Source can be one of the following types:
 
 `options` is a combination of the options for multiple components, see [Live2DFactoryOptions](https://guansss.github.io/pixi-live2d-display/interfaces/index.live2dfactoryoptions.html).
 
+### Transitions
+
+`Live2DModel` provides lightweight transitions for appearance and simple property animations. Transitions are updated by the model's update loop, so keep `autoUpdate` enabled or call `model.update()` manually.
+
+```js
+const model = await Live2DModel.from('shizuku.model.json', {
+    autoTransition: "load",
+    transitions: {
+        appear: { duration: 500, easing: "easeOutQuad", from: { alpha: 0 } },
+    },
+});
+
+await model.appear();
+await model.disappear({ duration: 300 });
+
+await model.transitionTo(
+    { alpha: 0.8, y: model.y + 40 },
+    { duration: 400, easing: "easeInOutQuad" },
+);
+```
+
+`autoTransition` accepts `true` (same as `"load"`), `"ready"`, `"load"`, or `"added"`.
+
 ## Creating model synchronously
 
 In case you want to participate in the creation, there's a synchronous creation
