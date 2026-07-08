@@ -29,7 +29,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/jannchie/pixi-live2d-display.git"
+    "url": "git+https://github.com/Jannchie/pixi-live2d-display.git"
   },
   "author": "Jannchie <jannchie@gmail.com>",
   "license": "MIT",
