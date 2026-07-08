@@ -1,6 +1,6 @@
 import { createTexture } from "@/factory/texture";
 import type { Renderer } from "pixi.js";
-import { BaseRenderTexture, RenderTexture, AlphaFilter, Graphics, Sprite } from "pixi.js";
+import { RenderTexture, AlphaFilter, Graphics, Sprite } from "pixi.js";
 import { expect } from "vitest";
 import { ALL_TEST_MODELS, TEST_TEXTURE, test } from "../env";
 import { addAllModels, createModel, delay } from "../utils";
@@ -51,13 +51,11 @@ test("works with PIXI.RenderTexture", async ({ app }) => {
     models.forEach((model) => {
         model.update(100);
 
-        const renderTexture = new RenderTexture(
-            new BaseRenderTexture({
-                width: model.width,
-                height: model.height,
-                resolution: 0.5,
-            }),
-        );
+        const renderTexture = RenderTexture.create({
+            width: model.width,
+            height: model.height,
+            resolution: 0.5,
+        });
 
         const sprite = new Sprite(renderTexture);
         sprite.scale.set(app.canvas.width / sprite.width);

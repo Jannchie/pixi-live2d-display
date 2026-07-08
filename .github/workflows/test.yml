@@ -20,11 +20,13 @@ jobs:
         with:
           submodules: true
 
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v3
         with:
-          node-version: 18
+          node-version: 22
           registry-url: 'https://registry.npmjs.org'
-          cache: "npm"
+          cache: "pnpm"
 
       - name: Cache core files
         uses: actions/cache@v3
@@ -35,21 +37,21 @@ jobs:
             !core/live2d.d.ts
           key: ${{ hashFiles('scripts/setup.js') }}
 
-      - run: npm ci
+      - run: pnpm install --frozen-lockfile
 
       - name: Set up core files
         if: steps.cache-core.outputs.cache-hit != 'true'
         run: |
           echo Cache miss: ${{ hashFiles('scripts/setup.js') }}
-          npm run setup
+          pnpm run setup
 
-      - run: npm run type
-      - run: npm run build
+      - run: pnpm run type
+      - run: pnpm run build
 
       - name: Run tests
         uses: GabrielBB/xvfb-action@v1.0
         with:
-          run: npm test
+          run: pnpm test
 
       - uses: actions/upload-artifact@v3
         if: failure()

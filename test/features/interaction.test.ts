@@ -3,19 +3,22 @@ import { expect, vi } from "vitest";
 import { testEachModel } from "../env";
 import { createModel } from "../utils";
 
-// simulates a pointertap event, copied from the tests in @pixi/event
+// simulates a pointertap event, copied from the tests in pixi.js events
 function tap(app: Application, x: number, y: number) {
-    app.renderer.events["onPointerDown"](
-        new PointerEvent("pointerdown", { clientX: x, clientY: y }),
-    );
+    const events = app.renderer.events as unknown as {
+        _onPointerDown: (e: PointerEvent) => void;
+        _onPointerUp: (e: PointerEvent) => void;
+    };
+
+    events._onPointerDown(new PointerEvent("pointerdown", { clientX: x, clientY: y }));
 
     const e = new PointerEvent("pointerup", { clientX: x, clientY: y });
     // so it isn't a pointerupoutside
     Object.defineProperty(e, "target", {
         writable: false,
-        value: app.view,
+        value: app.canvas,
     });
-    app.renderer.events["onPointerUp"](e);
+    events._onPointerUp(e);
 }
 
 testEachModel("handles tapping", async ({ app, model: { modelJsonWithUrl, hitTests } }) => {

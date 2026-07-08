@@ -166,11 +166,11 @@ test("uses custom idle group", async ({
 });
 
 test("loads motions", async ({ manager }) => {
-    expect(manager.loadMotion("Tap", 0)).resolves.toBeInstanceOf(CubismMotion);
+    await expect(manager.loadMotion("Tap", 0)).resolves.toBeInstanceOf(CubismMotion);
 
     config.logLevel = config.LOG_LEVEL_NONE;
 
-    expect(manager.loadMotion("asdfasdf", 0)).resolves.toBeUndefined();
+    await expect(manager.loadMotion("asdfasdf", 0)).resolves.toBeUndefined();
 });
 
 test("starts an idle motion when no motion playing", async ({
@@ -202,7 +202,7 @@ test("starts an idle motion when current motion has finished", async ({
 
 test("starts a random motion", async ({ manager, assertStartedMotion }) => {
     await assertStartedMotion.run("Tap", async () => {
-        expect(manager.startRandomMotion("Tap")).resolves.toBe(true);
+        await expect(manager.startRandomMotion("Tap")).resolves.toBe(true);
     });
 });
 
@@ -219,16 +219,16 @@ test("starts an idle motion when the reserved motion has not yet been loaded", a
     manager.update(coreModel, 0);
     manager.update(coreModel, 30 * 1000);
 
-    await assertStartedMotion.run("Tap", async () => {
-        loaderMock.block(TEST_MODEL4.modelJson.FileReferences.Motions.Tap[0]!.File);
-        void manager.startMotion("Tap", 0, MotionPriority.NORMAL);
+    loaderMock.block(TEST_MODEL4.modelJson.FileReferences.Motions.Tap[0]!.File);
+    void manager.startMotion("Tap", 0, MotionPriority.NORMAL);
 
+    try {
         await assertStartedMotion.run("Idle", async () => {
             manager.update(coreModel, 60 * 1000);
         });
-
+    } finally {
         loaderMock.unblockAll();
-    });
+    }
 });
 
 describe("refuses to play the same motion when it's already pending or playing", async () => {

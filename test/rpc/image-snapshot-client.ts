@@ -25,7 +25,14 @@ expect.extend({
         }
 
         const receivedAsB64 = isPixiApp(received)
-            ? await received.renderer.extract.base64(undefined, "image/png")
+            ? await received.renderer.extract.base64({
+                  target: received.stage,
+                  // constrain to the visible screen area like the removed
+                  // v7-style whole-screen extraction did
+                  frame: received.renderer.screen,
+                  format: "png",
+                  clearColor: received.renderer.background.color,
+              })
             : btoa(String.fromCharCode(...new Uint8Array(received)));
 
         const ctx: FakeMatcherStateSerialized = {

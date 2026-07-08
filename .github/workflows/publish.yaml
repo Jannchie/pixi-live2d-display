@@ -11,13 +11,16 @@ jobs:
       - uses: actions/checkout@v3
         with:
           submodules: true
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v3
         with:
-          node-version: 18
+          node-version: 22
           registry-url: 'https://registry.npmjs.org'
+          cache: "pnpm"
 
-      - run: npm ci
-      - run: npm run setup
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run setup
 
       # parse the package version to determine the npm tag to use (most likely "beta").
       # regex from: https://github.com/Leaflet/Leaflet/blob/35e053c6ff550991a0686865b87a34726e565ce5/.github/workflows/main.yml#L181C29-L181C29
@@ -25,6 +28,6 @@ jobs:
         run: |
           TAG=$(jq .version package.json | grep -oP '^"v?\d+\.\d+\.\d+-?\K(\w+)?')
           echo "Publishing to npm with tag: ${TAG:-latest}"
-          npm publish --tag ${TAG:-latest}
+          pnpm publish --tag ${TAG:-latest}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

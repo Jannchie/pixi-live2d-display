@@ -1,9 +1,9 @@
 /// <reference types="vitest" />
 
-import { existsSync, readFileSync } from "fs";
+import { existsSync } from "fs";
 import path from "path";
 import { defineConfig } from "vite";
-import { nodePolyfills } from "vite-plugin-node-polyfills";
+import { webdriverio } from "@vitest/browser-webdriverio";
 import { BaseSequencer } from "vitest/node";
 import packageJson from "./package.json";
 import { testRpcPlugin } from "./test/rpc/rpc-server";
@@ -66,37 +66,24 @@ export default defineConfig(({ command, mode }) => {
             minify: false,
         },
         plugins: [
-            // pixi.js imports a polyfill package named "url", which breaks Vitest
-            // see https://github.com/vitest-dev/vitest/issues/4535
-            isTest && nodePolyfills(),
-
             // Only load test RPC plugin in test mode to avoid ws dependency in dev
             isTest && testRpcPlugin(),
-            isTest && {
-                name: "load-cubism-core",
-                enforce: "post" as const,
-                transform(code, id) {
-                    if (id.includes("test/load-cores.ts")) {
-                        code = code.replace(
-                            "__CUBISM2_CORE_SOURCE__",
-                            readFileSync(cubism2Core, "utf-8"),
-                        );
-                        code = code.replace(
-                            "__CUBISM4_CORE_SOURCE__",
-                            readFileSync(cubism4Core, "utf-8"),
-                        );
-
-                        return { code };
-                    }
-                },
-            },
         ],
         test: {
             include: ["**/*.test.ts", "**/*.test.js"],
             browser: {
                 enabled: true,
-                name: "chrome",
-                slowHijackESM: false,
+                provider: webdriverio({
+                    capabilities: {
+                        "goog:chromeOptions": {
+                            // allow audio to play without a user gesture
+                            args: ["--autoplay-policy=no-user-gesture-required"],
+                        },
+                    },
+                }),
+                instances: [{ browser: "chrome" }],
+                // loads the Cubism cores as classic scripts before any test module runs
+                testerHtmlPath: "./test/tester.html",
             },
             setupFiles: ["./test/setup.ts"],
             sequence: {
@@ -108,9 +95,9 @@ export default defineConfig(({ command, mode }) => {
 
                         const bundleTestFiles: typeof files = [];
 
-                        files = files.filter(([project, file]) => {
-                            if (file.includes("bundle")) {
-                                bundleTestFiles.push([project, file]);
+                        files = files.filter((file) => {
+                            if (file.moduleId.includes("bundle")) {
+                                bundleTestFiles.push(file);
                                 return false;
                             }
                             return true;

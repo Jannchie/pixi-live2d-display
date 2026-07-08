@@ -16,7 +16,8 @@ describe("works when bundled", async () => {
             throw new Error("PIXI is not defined");
         }
 
-        const app = new PIXI.Application({
+        const app = new PIXI.Application();
+        await app.init({
             width: 512,
             height: 512,
             autoStart: false,
@@ -33,7 +34,8 @@ describe("works when bundled", async () => {
             throw new Error("PIXI is not defined");
         }
 
-        const app = new PIXI.Application({
+        const app = new PIXI.Application();
+        await app.init({
             width: 512,
             height: 512,
             autoStart: false,

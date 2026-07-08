@@ -1,12 +1,17 @@
-import "./load-cores";
-
-import { Container } from "pixi.js";
+import { Assets, Container } from "pixi.js";
 import { cloneDeep } from "lodash-es";
-import { afterEach, beforeEach, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, vi } from "vitest";
 import { config } from "../src/config";
 import "./rpc/image-snapshot-client";
+import circleImage from "./assets/circle.png?url";
 
 Container.defaultSortableChildren = true;
+
+beforeAll(async () => {
+    // warm up the image loader, which lazily creates a worker from an object URL
+    // that would otherwise be reported as a leak by the objectURLs fixture
+    await Assets.load(circleImage);
+});
 
 beforeEach(async function () {
     // declaring the context as an argument will cause a strange error, so we have to use arguments

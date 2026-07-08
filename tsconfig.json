@@ -6,17 +6,16 @@
     "target": "esnext",
     "module": "esnext",
     "strict": true,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "noUncheckedIndexedAccess": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "sourceMap": true,
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@cubism/*": ["cubism/src/*"]
+      "@/*": ["./src/*"],
+      "@cubism/*": ["./cubism/src/*"]
     },
     "types": [
       "node",

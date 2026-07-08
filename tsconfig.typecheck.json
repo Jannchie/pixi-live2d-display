@@ -4,17 +4,15 @@
     "target": "esnext",
     "module": "esnext",
     "strict": true,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "noUncheckedIndexedAccess": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "noEmit": true,
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@cubism/*": ["node_modules/@types/cubism/*"]
+      "@/*": ["./src/*"]
     },
     "types": [
       "node",
@@ -28,8 +26,7 @@
   },
   "include": [
     "src/**/*",
-    "playground/**/*",
-    "types/cubism.d.ts"
+    "playground/**/*"
   ],
   "exclude": [
     "node_modules",

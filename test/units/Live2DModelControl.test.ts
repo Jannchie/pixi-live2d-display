@@ -1,6 +1,6 @@
 import { FocusController } from "@/cubism-common/FocusController";
 import { Live2DModel } from "@/Live2DModel";
-import { EventEmitter } from "@pixi/utils";
+import { EventEmitter } from "pixi.js";
 import { expect, test } from "vitest";
 
 class StubInternalModel extends EventEmitter {
