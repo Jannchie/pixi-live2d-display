@@ -7,6 +7,10 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # allows npm trusted publishing via OIDC, no NPM_TOKEN needed
+      id-token: write
     steps:
       - uses: actions/checkout@v5
         with:
@@ -31,5 +35,3 @@ jobs:
           # --no-git-checks: the release event checks out a tag (detached HEAD),
           # which would fail pnpm's branch check
           pnpm publish --tag ${TAG:-latest} --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
