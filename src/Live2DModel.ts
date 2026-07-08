@@ -166,6 +166,8 @@ interface Live2DModelWindPhysics {
     setOptions?: (options: Live2DModelWindOptions) => void;
 }
 
+type Live2DModelResolvedWindPhysics = Required<Live2DModelWindPhysics>;
+
 const tempPoint = new Point();
 const tempMatrix = new Matrix();
 
@@ -693,7 +695,7 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
         return this.internalModel.coreModel as Live2DCoreModelAccessors;
     }
 
-    private getWindPhysics(): Live2DModelWindPhysics | null {
+    private getWindPhysics(): Live2DModelResolvedWindPhysics | null {
         if (!this.isReady()) {
             return null;
         }
@@ -708,7 +710,7 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
             return null;
         }
 
-        return physics;
+        return physics as Live2DModelResolvedWindPhysics;
     }
 
     private getDefaultEyeParamIds(): typeof CUBISM4_EYE_PARAM_IDS | typeof CUBISM2_EYE_PARAM_IDS | null {
@@ -928,13 +930,7 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
      * @param instant - Should the focus position be instantly applied.
      */
     focus(x: number, y: number, instant: boolean = false): void {
-        const target = this.resolveFocusTargetFromWorld(x, y);
-        if (!target) {
-            return;
-        }
-
-        this.stopFocusTransition();
-        this.internalModel.focusController.focus(target.x, target.y, instant);
+        void this.lookAt(x, y, { instant });
     }
 
     /**
@@ -1479,7 +1475,7 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
     private applyWindTransitionProgress(
         transition: Live2DModelActiveWindTransition,
         progress: number,
-        physics: Live2DModelWindPhysics,
+        physics: Live2DModelResolvedWindPhysics,
     ): void {
         const options = physics.getOption();
         options.wind.x = lerp(transition.fromX, transition.toX, progress);
@@ -1487,28 +1483,23 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
         physics.setOptions(options);
     }
 
-    // In Pixi.js v8, onRender callback doesn't receive renderer parameter
-    // We need to access the renderer differently
-    private _onRenderCallback(): void {
-        // Try to use cached renderer first, otherwise fall back to global access
-        let webglRenderer = this.renderer;
-        
-        if (!webglRenderer) {
-            // Fallback to global application access
-            const app = (globalThis as any).app || (window as any).app;
-            if (!app?.renderer) {
-                return;
-            }
-            
-            const renderer = app.renderer as Renderer;
-            if (!this.isWebGLRenderer(renderer)) {
-                return;
-            }
-            
-            webglRenderer = renderer;
-            this.renderer = webglRenderer; // Cache for next time
+    private _onRenderCallback(renderer: Renderer): void {
+        // cache the renderer passed in by the render pipeline
+        if (!this.renderer) {
+            this.setRenderer(renderer);
         }
-        
+
+        const webglRenderer = this.renderer;
+
+        if (!webglRenderer) {
+            // not a WebGL renderer
+            return;
+        }
+
+        if (webglRenderer.gl.isContextLost()) {
+            return;
+        }
+
         // Early exit if model cannot render
         if (!this.canRender()) {
             return;

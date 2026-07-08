@@ -34,7 +34,7 @@ export class AudioAnalyzer {
             this.onVolumeChange = onVolumeChange;
             this.startAnalysis();
         } catch (error) {
-            throw new Error(`Failed to access microphone: ${error}`);
+            throw new Error(`Failed to access microphone: ${error}`, { cause: error });
         }
     }
 
@@ -75,7 +75,7 @@ export class AudioAnalyzer {
                 }
             };
         } catch (error) {
-            throw new Error(`Failed to play audio: ${error}`);
+            throw new Error(`Failed to play audio: ${error}`, { cause: error });
         }
     }
 

@@ -268,9 +268,9 @@ export class Cubism4InternalModel extends InternalModel {
         this.updateNaturalMovements(dt * 1000, now * 1000);
 
         // Apply lip sync
-        if (this.lipSyncEnabled && this.motionManager.lipSyncIds.length > 0) {
-            for (let i = 0; i < this.motionManager.lipSyncIds.length; ++i) {
-                model.addParameterValueById(this.motionManager.lipSyncIds[i], this.lipSyncValue, 0.8);
+        if (this.lipSyncEnabled) {
+            for (const parameterId of this.motionManager.lipSyncIds) {
+                model.addParameterValueById(parameterId, this.lipSyncValue, 0.8);
             }
         }
 

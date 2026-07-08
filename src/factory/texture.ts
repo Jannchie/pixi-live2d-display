@@ -4,19 +4,17 @@ export async function createTexture(
     url: string,
     options: { crossOrigin?: string } = {},
 ): Promise<Texture> {
-    try {
-        // In Pixi.js v8, use Assets.load to load the texture from URL first
-        const texture = await Assets.load(url);
-        return texture;
-    } catch (e) {
-        if (e instanceof Error) {
-            throw e;
-        }
+    // In Pixi.js v8, use Assets.load to load the texture from URL
+    const texture = await Assets.load({
+        src: url,
+        loadParser: "loadTextures",
+        data: { crossorigin: options.crossOrigin },
+    });
 
-        // assume e is an ErrorEvent, let's convert it to an Error
-        const err = new Error("Texture loading error");
-        (err as any).event = e;
-
-        throw err;
+    // Assets.load may resolve with a non-Texture value for unrecognized sources
+    if (!(texture instanceof Texture)) {
+        throw new Error(`Failed to load texture: ${url}`);
     }
+
+    return texture;
 }

@@ -2,7 +2,7 @@ import { FocusController } from "@/cubism-common/FocusController";
 import type { ModelSettings } from "@/cubism-common/ModelSettings";
 import type { MotionManager, MotionManagerOptions } from "@/cubism-common/MotionManager";
 import { LOGICAL_HEIGHT, LOGICAL_WIDTH } from "@/cubism-common/constants";
-import { EventEmitter } from "@pixi/utils";
+import { EventEmitter } from "pixi.js";
 import { Matrix } from "pixi.js";
 import type { Mutable } from "../types/helpers";
 

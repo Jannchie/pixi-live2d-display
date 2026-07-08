@@ -4,7 +4,7 @@ import type { ModelSettings } from "@/cubism-common/ModelSettings";
 import { MotionPriority, MotionState } from "@/cubism-common/MotionState";
 import { SoundManager } from "@/cubism-common/SoundManager";
 import { logger } from "@/utils";
-import { EventEmitter } from "@pixi/utils";
+import { EventEmitter } from "pixi.js";
 import type { JSONObject, Mutable } from "../types/helpers";
 
 export interface MotionManagerOptions {
@@ -277,7 +277,7 @@ export abstract class MotionManager<Motion = any, MotionSpec = any> extends Even
         this.emit("motionStart", group, index, audio);
 
         if (this.state.shouldOverrideExpression()) {
-            this.expressionManager && this.expressionManager.resetExpression();
+            this.expressionManager?.resetExpression();
         }
 
         this.playing = true;

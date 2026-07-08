@@ -1,5 +1,4 @@
-import { folderName } from "@/utils";
-// utils.url.resolve is deprecated, using native URL constructor instead
+import { folderName, resolveURL } from "@/utils";
 import type { JSONObject } from "../types/helpers";
 
 /**
@@ -70,15 +69,7 @@ export abstract class ModelSettings {
      * @return Resolved path.
      */
     resolveURL(path: string): string {
-        // Using native URL constructor instead of deprecated utils.url.resolve
-        try {
-            return new URL(path, this.url).href;
-        } catch {
-            const base = this.url.endsWith('/')
-                ? this.url
-                : this.url.substring(0, this.url.lastIndexOf('/') + 1);
-            return base + path;
-        }
+        return resolveURL(path, this.url);
     }
 
     /**

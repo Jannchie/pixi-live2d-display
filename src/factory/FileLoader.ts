@@ -2,7 +2,7 @@ import type { InternalModel, ModelSettings } from "@/cubism-common";
 import type { Live2DFactoryContext } from "@/factory";
 import { Live2DFactory } from "@/factory";
 import type { Middleware } from "@/utils/middleware";
-// utils.url.resolve is deprecated, using native URL constructor instead
+import { resolveURL } from "@/utils";
 
 declare global {
     interface File {
@@ -115,8 +115,7 @@ export class FileLoader {
 
         // only consume the files defined in settings
         for (const definedFile of settings.getDefinedFiles()) {
-            // Using native URL constructor instead of deprecated utils.url.resolve
-            const actualPath = decodeURI(new URL(definedFile, settings.url).href);
+            const actualPath = decodeURI(resolveURL(definedFile, settings.url));
 
             const actualFile = files.find((file) => file.webkitRelativePath === actualPath);
 
