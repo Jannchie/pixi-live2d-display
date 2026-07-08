@@ -73,11 +73,19 @@ export default defineConfig(({ command, mode }) => {
             include: ["**/*.test.ts", "**/*.test.js"],
             browser: {
                 enabled: true,
+                // run headful (under xvfb in CI): headless Chrome disables
+                // software WebGL, which the tests require
+                headless: false,
                 provider: webdriverio({
                     capabilities: {
                         "goog:chromeOptions": {
-                            // allow audio to play without a user gesture
-                            args: ["--autoplay-policy=no-user-gesture-required"],
+                            args: [
+                                // allow audio to play without a user gesture
+                                "--autoplay-policy=no-user-gesture-required",
+                                // allow software WebGL on GPU-less CI runners
+                                "--enable-unsafe-swiftshader",
+                                "--no-sandbox",
+                            ],
                         },
                     },
                 }),
