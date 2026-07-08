@@ -8,12 +8,12 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
         with:
           submodules: true
       - uses: pnpm/action-setup@v4
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           registry-url: 'https://registry.npmjs.org'
@@ -28,6 +28,8 @@ jobs:
         run: |
           TAG=$(jq .version package.json | grep -oP '^"v?\d+\.\d+\.\d+-?\K(\w+)?')
           echo "Publishing to npm with tag: ${TAG:-latest}"
-          pnpm publish --tag ${TAG:-latest}
+          # --no-git-checks: the release event checks out a tag (detached HEAD),
+          # which would fail pnpm's branch check
+          pnpm publish --tag ${TAG:-latest} --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

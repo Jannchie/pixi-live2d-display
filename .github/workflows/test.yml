@@ -16,20 +16,20 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
         with:
           submodules: true
 
       - uses: pnpm/action-setup@v4
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           registry-url: 'https://registry.npmjs.org'
           cache: "pnpm"
 
       - name: Cache core files
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         id: cache-core
         with:
           path: |
@@ -49,11 +49,9 @@ jobs:
       - run: pnpm run build
 
       - name: Run tests
-        uses: GabrielBB/xvfb-action@v1.0
-        with:
-          run: pnpm test
+        run: xvfb-run --auto-servernum pnpm test
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: diff-images
