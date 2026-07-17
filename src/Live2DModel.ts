@@ -540,6 +540,20 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
     protected renderer?: WebGLRenderer;
 
     /**
+     * WebGL textures extracted from the Pixi textures, cached per GL context.
+     * Extraction goes through Pixi's texture system and is too expensive to run
+     * every frame; entries are invalidated on context change/loss.
+     */
+    private cachedGlTextures: (WebGLTexture | null)[] = [];
+
+    /**
+     * Forces re-extraction of the WebGL textures on the next rendered frame.
+     * Set while the context is lost, because the context UID stored on the gl
+     * object survives a lost/restored context and won't invalidate the cache.
+     */
+    private forceTextureUpdate = false;
+
+    /**
      * Elapsed time in milliseconds since created.
      */
     elapsedTime: DOMHighResTimeStamp = 0;
@@ -609,7 +623,10 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
         }
         
         this.tag = `Live2DModel(${this.internalModel.settings.name})`;
-        
+
+        // textures may have been (re)assigned during loading
+        this.cachedGlTextures.length = 0;
+
         // Update bounds area now that the internal model is loaded
         this.updateBoundsArea();
         this.attachParameterTransitionHandler();
@@ -1517,6 +1534,8 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
         }
 
         if (webglRenderer.gl.isContextLost()) {
+            // the cached GL textures die with the context; re-extract once it's restored
+            this.forceTextureUpdate = true;
             return;
         }
 
@@ -1544,6 +1563,17 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
                 shouldUpdateTexture = true;
             }
 
+            if (this.forceTextureUpdate) {
+                this.forceTextureUpdate = false;
+                shouldUpdateTexture = true;
+            }
+
+            if (shouldUpdateTexture) {
+                this.cachedGlTextures.length = 0;
+            }
+
+            let flipYModified = false;
+
             for (let i = 0; i < this.textures.length; i++) {
                 const texture = this.textures[i]!;
 
@@ -1552,24 +1582,25 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
                     continue;
                 }
 
-                // In v8, texture handling is different - no more baseTexture
-                const textureSourceWithGL = texture.source as any;
-                const shouldUpdate = shouldUpdateTexture || 
-                    !textureSourceWithGL?._glTextures?.[this.glContextID];
+                let glTexture = this.cachedGlTextures[i] ?? null;
 
-                // bind the WebGLTexture into Live2D core.
-                // In v8, get the actual WebGL texture object
-                const glTexture = this.extractWebGLTexture(webglRenderer, texture);
-                
-                if (this.isWebGLTexture(glTexture) && this.internalModel) {
-                    // Set texture flip state right before binding each texture
-                    if (shouldUpdate) {
+                if (!glTexture) {
+                    // bind the WebGLTexture into Live2D core.
+                    // In v8, get the actual WebGL texture object
+                    glTexture = this.extractWebGLTexture(webglRenderer, texture);
+                    this.cachedGlTextures[i] = glTexture;
+
+                    // Set texture flip state right before binding a freshly extracted texture
+                    if (this.isWebGLTexture(glTexture) && this.internalModel) {
                         webglRenderer.gl.pixelStorei(
                             WebGLRenderingContext.UNPACK_FLIP_Y_WEBGL,
                             this.internalModel.textureFlipY,
                         );
+                        flipYModified = true;
                     }
-                    
+                }
+
+                if (this.isWebGLTexture(glTexture) && this.internalModel) {
                     this.internalModel.bindTexture(i, glTexture);
                 }
 
@@ -1580,7 +1611,7 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
             }
 
             // Reset GL state after texture binding to avoid affecting other textures
-            if (shouldUpdateTexture && this.internalModel) {
+            if (flipYModified) {
                 webglRenderer.gl.pixelStorei(
                     WebGLRenderingContext.UNPACK_FLIP_Y_WEBGL,
                     false,
@@ -2089,6 +2120,8 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
                 this.textures.forEach((texture) => texture.destroy(destroyTextureSource));
             }
         }
+
+        this.cachedGlTextures.length = 0;
 
         this.automator.destroy();
 
