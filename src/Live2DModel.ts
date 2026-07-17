@@ -5,6 +5,12 @@ import { Live2DFactory } from "@/factory/Live2DFactory";
 import type { Renderer, Texture, Ticker, WebGLRenderer } from "pixi.js";
 import { Assets, Matrix, ObservablePoint, Point, Container, Rectangle } from "pixi.js";
 import { Automator, type AutomatorOptions } from "./Automator";
+import { ParameterTransitionController } from "./controllers/ParameterTransitionController";
+import type {
+    Live2DModelParameterTransitionDefinition,
+    Live2DModelParameterTransitionOptions,
+    Live2DModelParameterValues,
+} from "./controllers/ParameterTransitionController";
 import { VisualTransitionController } from "./controllers/VisualTransitionController";
 import type {
     Live2DModelAutoTransitionTrigger,
@@ -48,6 +54,11 @@ export type {
 } from "./controllers/WindController";
 export type { Live2DModelSpeakOptions } from "./controllers/SpeechController";
 export type {
+    Live2DModelParameterTransitionDefinition,
+    Live2DModelParameterTransitionOptions,
+    Live2DModelParameterValues,
+} from "./controllers/ParameterTransitionController";
+export type {
     Live2DModelAutoTransitionTrigger,
     Live2DModelTransitionDefinition,
     Live2DModelTransitionPresets,
@@ -55,22 +66,6 @@ export type {
     Live2DModelTransitionState,
     Live2DModelTransitionToOptions,
 } from "./controllers/VisualTransitionController";
-
-export type Live2DModelParameterValues = Record<string, number>;
-
-export interface Live2DModelParameterTransitionOptions extends Live2DModelTransitionOptions {}
-
-export interface Live2DModelParameterTransitionDefinition extends Live2DModelParameterTransitionOptions {
-    /**
-     * Parameter values to apply at the beginning of the transition.
-     */
-    from?: Live2DModelParameterValues;
-
-    /**
-     * Parameter values to apply at the end of the transition.
-     */
-    to?: Live2DModelParameterValues;
-}
 
 export type Live2DModelBreathParameter = BreathParameter;
 
@@ -102,33 +97,10 @@ interface WebGLContextWithUID extends WebGL2RenderingContext {
     _pixiContextUID?: number;
 }
 
-interface Live2DCoreModelAccessors {
-    getParameterValueById?: (parameterId: string) => number;
-    setParameterValueById?: (parameterId: string, value: number) => void;
-    getParamFloat?: (parameterId: string) => number;
-    setParamFloat?: (parameterId: string, value: number) => void;
-}
-
 const tempPoint = new Point();
 const tempMatrix = new Matrix();
 // reused when the renderer exposes no projection matrix, to avoid a per-frame allocation
 const fallbackProjection = new Matrix();
-
-interface Live2DModelTransitionValue {
-    from: number;
-    to: number;
-}
-
-type Live2DModelParameterTransitionValues = Record<string, Live2DModelTransitionValue>;
-
-interface Live2DModelActiveParameterTransition {
-    elapsed: number;
-    delay: number;
-    duration: number;
-    easing: Live2DModelTransitionEasingFunction;
-    values: Live2DModelParameterTransitionValues;
-    resolve: () => void;
-}
 
 interface Live2DModelActiveFocusTransition {
     elapsed: number;
@@ -140,49 +112,6 @@ interface Live2DModelActiveFocusTransition {
     toX: number;
     toY: number;
     resolve: () => void;
-}
-
-const CUBISM4_EYE_PARAM_IDS = {
-    leftOpen: "ParamEyeLOpen",
-    rightOpen: "ParamEyeROpen",
-    ballX: "ParamEyeBallX",
-    ballY: "ParamEyeBallY",
-};
-const CUBISM2_EYE_PARAM_IDS = {
-    leftOpen: "PARAM_EYE_L_OPEN",
-    rightOpen: "PARAM_EYE_R_OPEN",
-    ballX: "PARAM_EYE_BALL_X",
-    ballY: "PARAM_EYE_BALL_Y",
-};
-
-function buildParameterTransitionValues(
-    current: Record<string, number | undefined>,
-    from: Live2DModelParameterValues | undefined,
-    to: Live2DModelParameterValues | undefined,
-): Live2DModelParameterTransitionValues {
-    const values: Live2DModelParameterTransitionValues = {};
-    const keys = new Set<string>();
-
-    for (const key of Object.keys(from ?? {})) {
-        keys.add(key);
-    }
-    for (const key of Object.keys(to ?? {})) {
-        keys.add(key);
-    }
-
-    for (const key of keys) {
-        const currentValue = current[key];
-        const fromValue = from?.[key] ?? currentValue;
-        const toValue = to?.[key] ?? currentValue;
-
-        if (fromValue === undefined || toValue === undefined) {
-            continue;
-        }
-
-        values[key] = { from: fromValue, to: toValue };
-    }
-
-    return values;
 }
 
 export type Live2DConstructor = { new (options?: Live2DModelOptions): Live2DModel };
@@ -321,10 +250,7 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
     automator: Automator;
 
     private visualTransitions: VisualTransitionController;
-    private activeParameterTransition: Live2DModelActiveParameterTransition | null = null;
-    private parameterTransitionValues: Live2DModelParameterValues | null = null;
-    private parameterTransitionHandler: (() => void) | null = null;
-    private parameterTransitionAttached = false;
+    private parameterTransitions = new ParameterTransitionController(this);
     private activeFocusTransition: Live2DModelActiveFocusTransition | null = null;
     private windController = new WindController(this);
 
@@ -409,7 +335,7 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
 
         // Update bounds area now that the internal model is loaded
         this.updateBoundsArea();
-        this.attachParameterTransitionHandler();
+        this.parameterTransitions.onModelLoaded();
     }
 
     private setupAutoTransition(options?: Live2DModelOptions): void {
@@ -437,32 +363,6 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
         }
     }
 
-    private attachParameterTransitionHandler(): void {
-        if (!this.internalModel) {
-            return;
-        }
-
-        if (!this.parameterTransitionHandler) {
-            this.parameterTransitionHandler = () => {
-                this.applyParameterTransitionValues();
-            };
-        }
-
-        if (!this.parameterTransitionAttached) {
-            this.internalModel.on("beforeModelUpdate", this.parameterTransitionHandler);
-            this.parameterTransitionAttached = true;
-        }
-    }
-
-    private detachParameterTransitionHandler(): void {
-        if (!this.internalModel || !this.parameterTransitionHandler || !this.parameterTransitionAttached) {
-            return;
-        }
-
-        this.internalModel.off("beforeModelUpdate", this.parameterTransitionHandler);
-        this.parameterTransitionAttached = false;
-    }
-
     /**
      * Checks if the model is ready (internal model is loaded).
      */
@@ -482,31 +382,6 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
      */
     hasValidRenderer(): boolean {
         return this.renderer !== undefined && this.renderer.gl instanceof WebGL2RenderingContext;
-    }
-
-    private getCoreModel(): Live2DCoreModelAccessors | null {
-        if (!this.isReady()) {
-            return null;
-        }
-
-        return this.internalModel.coreModel as Live2DCoreModelAccessors;
-    }
-
-    private getDefaultEyeParamIds(): typeof CUBISM4_EYE_PARAM_IDS | typeof CUBISM2_EYE_PARAM_IDS | null {
-        const coreModel = this.getCoreModel();
-        if (!coreModel) {
-            return null;
-        }
-
-        if (typeof coreModel.setParameterValueById === "function") {
-            return CUBISM4_EYE_PARAM_IDS;
-        }
-
-        if (typeof coreModel.setParamFloat === "function") {
-            return CUBISM2_EYE_PARAM_IDS;
-        }
-
-        return null;
     }
 
     /**
@@ -837,7 +712,7 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
         this.visualTransitions.update(dt);
         this.updateFocusTransition(dt);
         this.windController.update(dt);
-        this.updateParameterTransition(dt);
+        this.parameterTransitions.update(dt);
         this.deltaTime += dt;
         this.elapsedTime += dt;
 
@@ -893,46 +768,21 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
      * Gets a parameter value by ID.
      */
     getParameterValue(parameterId: string): number | undefined {
-        const coreModel = this.getCoreModel();
-        if (!coreModel) {
-            return;
-        }
-
-        if (typeof coreModel.getParameterValueById === "function") {
-            return coreModel.getParameterValueById(parameterId);
-        }
-
-        if (typeof coreModel.getParamFloat === "function") {
-            return coreModel.getParamFloat(parameterId);
-        }
+        return this.parameterTransitions.getParameterValue(parameterId);
     }
 
     /**
      * Sets a parameter value by ID.
      */
     setParameterValue(parameterId: string, value: number): void {
-        const coreModel = this.getCoreModel();
-        if (!coreModel) {
-            return;
-        }
-
-        if (typeof coreModel.setParameterValueById === "function") {
-            coreModel.setParameterValueById(parameterId, value);
-            return;
-        }
-
-        if (typeof coreModel.setParamFloat === "function") {
-            coreModel.setParamFloat(parameterId, value);
-        }
+        this.parameterTransitions.setParameterValue(parameterId, value);
     }
 
     /**
      * Sets multiple parameter values by ID.
      */
     setParameterValues(values: Live2DModelParameterValues): void {
-        for (const [parameterId, value] of Object.entries(values)) {
-            this.setParameterValue(parameterId, value);
-        }
+        this.parameterTransitions.setParameterValues(values);
     }
 
     /**
@@ -941,56 +791,7 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
     transitionParameters(
         definition: Live2DModelParameterTransitionDefinition,
     ): Promise<void> {
-        if (!this.isReady()) {
-            return Promise.resolve();
-        }
-
-        const from = definition.from;
-        const to = definition.to;
-        const current: Record<string, number | undefined> = {};
-
-        for (const parameterId of new Set([
-            ...Object.keys(from ?? {}),
-            ...Object.keys(to ?? {}),
-        ])) {
-            current[parameterId] = this.getParameterValue(parameterId);
-        }
-
-        const values = buildParameterTransitionValues(current, from, to);
-        const entries = Object.entries(values);
-
-        if (entries.length === 0) {
-            return Promise.resolve();
-        }
-
-        const duration = Math.max(
-            0,
-            definition.duration ?? DEFAULT_TRANSITION_DURATION,
-        );
-        const delay = Math.max(0, definition.delay ?? DEFAULT_TRANSITION_DELAY);
-        const easing = resolveEasing(definition.easing);
-
-        this.stopParameterTransition();
-
-        if (duration === 0 && delay === 0) {
-            this.parameterTransitionValues = this.computeParameterTransitionValues(values, 1);
-            this.setParameterValues(this.parameterTransitionValues);
-            return Promise.resolve();
-        }
-
-        this.parameterTransitionValues = this.computeParameterTransitionValues(values, 0);
-        this.setParameterValues(this.parameterTransitionValues);
-
-        return new Promise((resolve) => {
-            this.activeParameterTransition = {
-                elapsed: 0,
-                delay,
-                duration,
-                easing,
-                values,
-                resolve,
-            };
-        });
+        return this.parameterTransitions.transitionParameters(definition);
     }
 
     /**
@@ -1000,86 +801,21 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
         values: Live2DModelParameterValues,
         options: Live2DModelParameterTransitionOptions = {},
     ): Promise<void> {
-        return this.transitionParameters({ ...options, to: values });
+        return this.parameterTransitions.transitionParametersTo(values, options);
     }
 
     /**
      * Stops the active parameter transition without altering current values.
      */
     stopParameterTransition(): void {
-        if (!this.activeParameterTransition) {
-            return;
-        }
-
-        const activeTransition = this.activeParameterTransition;
-        this.activeParameterTransition = null;
-        this.parameterTransitionValues = null;
-        activeTransition.resolve();
+        this.parameterTransitions.stopParameterTransition();
     }
 
     /**
      * Returns whether a parameter transition is currently running.
      */
     isParameterTransitioning(): boolean {
-        return this.activeParameterTransition !== null;
-    }
-
-    private updateParameterTransition(dt: DOMHighResTimeStamp): void {
-        const activeTransition = this.activeParameterTransition;
-        if (!activeTransition) {
-            return;
-        }
-
-        activeTransition.elapsed += dt;
-        if (activeTransition.elapsed < activeTransition.delay) {
-            this.parameterTransitionValues = this.computeParameterTransitionValues(
-                activeTransition.values,
-                0,
-            );
-            return;
-        }
-
-        const elapsed = activeTransition.elapsed - activeTransition.delay;
-        const progress =
-            activeTransition.duration === 0
-                ? 1
-                : Math.min(1, elapsed / activeTransition.duration);
-        const eased = activeTransition.easing(progress);
-
-        this.parameterTransitionValues = this.computeParameterTransitionValues(
-            activeTransition.values,
-            eased,
-        );
-
-        if (progress >= 1) {
-            this.activeParameterTransition = null;
-            activeTransition.resolve();
-        }
-    }
-
-    private computeParameterTransitionValues(
-        values: Live2DModelParameterTransitionValues,
-        progress: number,
-    ): Live2DModelParameterValues {
-        const result: Live2DModelParameterValues = {};
-
-        for (const [parameterId, value] of Object.entries(values)) {
-            result[parameterId] = lerp(value.from, value.to, progress);
-        }
-
-        return result;
-    }
-
-    private applyParameterTransitionValues(): void {
-        if (!this.parameterTransitionValues) {
-            return;
-        }
-
-        this.setParameterValues(this.parameterTransitionValues);
-
-        if (!this.activeParameterTransition) {
-            this.parameterTransitionValues = null;
-        }
+        return this.parameterTransitions.isParameterTransitioning();
     }
 
     private updateFocusTransition(dt: DOMHighResTimeStamp): void {
@@ -1451,18 +1187,7 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
      * @param options - Transition options.
      */
     eyeOpen(value: number, options: Live2DModelParameterTransitionOptions = {}): Promise<void> {
-        const paramIds = this.getDefaultEyeParamIds();
-        if (!paramIds) {
-            return Promise.resolve();
-        }
-
-        return this.transitionParametersTo(
-            {
-                [paramIds.leftOpen]: value,
-                [paramIds.rightOpen]: value,
-            },
-            options,
-        );
+        return this.parameterTransitions.eyeOpen(value, options);
     }
 
     /**
@@ -1470,7 +1195,7 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
      * @param options - Transition options.
      */
     eyeClose(options: Live2DModelParameterTransitionOptions = {}): Promise<void> {
-        return this.eyeOpen(0, options);
+        return this.parameterTransitions.eyeClose(options);
     }
 
     /**
@@ -1534,10 +1259,9 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
         } | boolean,
     ): void {
         this.visualTransitions.destroy();
-        this.stopParameterTransition();
+        this.parameterTransitions.destroy();
         this.stopFocusTransition();
         this.windController.destroy();
-        this.detachParameterTransitionHandler();
         this.emit("destroy");
 
         const destroyTextures =
