@@ -5,6 +5,12 @@ import { Live2DFactory } from "@/factory/Live2DFactory";
 import type { Renderer, Texture, Ticker, WebGLRenderer } from "pixi.js";
 import { Assets, Matrix, ObservablePoint, Point, Container, Rectangle } from "pixi.js";
 import { Automator, type AutomatorOptions } from "./Automator";
+import { WindController } from "./controllers/WindController";
+import type {
+    Live2DModelWind,
+    Live2DModelWindTransitionDefinition,
+    Live2DModelWindTransitionOptions,
+} from "./controllers/WindController";
 import { Live2DTransform } from "./Live2DTransform";
 import type { JSONObject } from "./types/helpers";
 import { logger, AudioAnalyzer } from "./utils";
@@ -25,6 +31,11 @@ export type {
     Live2DModelTransitionEasingName,
     Live2DModelTransitionOptions,
 } from "./transitions/easings";
+export type {
+    Live2DModelWind,
+    Live2DModelWindTransitionDefinition,
+    Live2DModelWindTransitionOptions,
+} from "./controllers/WindController";
 
 export interface Live2DModelTransitionScale {
     x?: number;
@@ -74,25 +85,6 @@ export interface Live2DModelParameterTransitionDefinition extends Live2DModelPar
 
 export type Live2DModelBreathParameter = BreathParameter;
 
-export interface Live2DModelWind {
-    x: number;
-    y: number;
-}
-
-export interface Live2DModelWindTransitionOptions extends Live2DModelTransitionOptions {}
-
-export interface Live2DModelWindTransitionDefinition extends Live2DModelWindTransitionOptions {
-    /**
-     * Wind values to apply at the beginning of the transition.
-     */
-    from?: Live2DModelWind;
-
-    /**
-     * Wind values to apply at the end of the transition.
-     */
-    to?: Live2DModelWind;
-}
-
 export interface Live2DModelFocusTransitionOptions extends Live2DModelTransitionOptions {
     /**
      * Apply the target instantly when no transition options are provided.
@@ -141,17 +133,6 @@ interface Live2DCoreModelAccessors {
     getParamFloat?: (parameterId: string) => number;
     setParamFloat?: (parameterId: string, value: number) => void;
 }
-
-interface Live2DModelWindOptions {
-    wind: Live2DModelWind;
-}
-
-interface Live2DModelWindPhysics {
-    getOption?: () => Live2DModelWindOptions;
-    setOptions?: (options: Live2DModelWindOptions) => void;
-}
-
-type Live2DModelResolvedWindPhysics = Required<Live2DModelWindPhysics>;
 
 const tempPoint = new Point();
 const tempMatrix = new Matrix();
@@ -211,18 +192,6 @@ interface Live2DModelActiveParameterTransition {
 }
 
 interface Live2DModelActiveFocusTransition {
-    elapsed: number;
-    delay: number;
-    duration: number;
-    easing: Live2DModelTransitionEasingFunction;
-    fromX: number;
-    fromY: number;
-    toX: number;
-    toY: number;
-    resolve: () => void;
-}
-
-interface Live2DModelActiveWindTransition {
     elapsed: number;
     delay: number;
     duration: number;
@@ -524,7 +493,7 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
     private parameterTransitionHandler: (() => void) | null = null;
     private parameterTransitionAttached = false;
     private activeFocusTransition: Live2DModelActiveFocusTransition | null = null;
-    private activeWindTransition: Live2DModelActiveWindTransition | null = null;
+    private windController = new WindController(this);
 
     /**
      * Audio analyzer for speech recognition and lip sync.
@@ -696,24 +665,6 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
         }
 
         return this.internalModel.coreModel as Live2DCoreModelAccessors;
-    }
-
-    private getWindPhysics(): Live2DModelResolvedWindPhysics | null {
-        if (!this.isReady()) {
-            return null;
-        }
-
-        const physics = this.internalModel.physics as Live2DModelWindPhysics | undefined;
-        if (!physics || typeof physics.getOption !== "function" || typeof physics.setOptions !== "function") {
-            return null;
-        }
-
-        const options = physics.getOption();
-        if (!options || typeof options.wind?.x !== "number" || typeof options.wind?.y !== "number") {
-            return null;
-        }
-
-        return physics as Live2DModelResolvedWindPhysics;
     }
 
     private getDefaultEyeParamIds(): typeof CUBISM4_EYE_PARAM_IDS | typeof CUBISM2_EYE_PARAM_IDS | null {
@@ -1060,7 +1011,7 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
     update(dt: DOMHighResTimeStamp): void {
         this.updateTransition(dt);
         this.updateFocusTransition(dt);
-        this.updateWindTransition(dt);
+        this.windController.update(dt);
         this.updateParameterTransition(dt);
         this.deltaTime += dt;
         this.elapsedTime += dt;
@@ -1463,49 +1414,6 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
         this.internalModel.focusController.focus(x, y, true);
     }
 
-    private updateWindTransition(dt: DOMHighResTimeStamp): void {
-        const activeTransition = this.activeWindTransition;
-        if (!activeTransition || !this.isReady()) {
-            return;
-        }
-
-        const physics = this.getWindPhysics();
-        if (!physics) {
-            return;
-        }
-
-        activeTransition.elapsed += dt;
-        if (activeTransition.elapsed < activeTransition.delay) {
-            this.applyWindTransitionProgress(activeTransition, 0, physics);
-            return;
-        }
-
-        const elapsed = activeTransition.elapsed - activeTransition.delay;
-        const progress =
-            activeTransition.duration === 0
-                ? 1
-                : Math.min(1, elapsed / activeTransition.duration);
-        const eased = activeTransition.easing(progress);
-
-        this.applyWindTransitionProgress(activeTransition, eased, physics);
-
-        if (progress >= 1) {
-            this.activeWindTransition = null;
-            activeTransition.resolve();
-        }
-    }
-
-    private applyWindTransitionProgress(
-        transition: Live2DModelActiveWindTransition,
-        progress: number,
-        physics: Live2DModelResolvedWindPhysics,
-    ): void {
-        const options = physics.getOption();
-        options.wind.x = lerp(transition.fromX, transition.toX, progress);
-        options.wind.y = lerp(transition.fromY, transition.toY, progress);
-        physics.setOptions(options);
-    }
-
     private _onRenderCallback(renderer: Renderer): void {
         // cache the renderer passed in by the render pipeline
         if (!this.renderer) {
@@ -1783,7 +1691,7 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
      * Checks whether wind control is supported.
      */
     isWindSupported(): boolean {
-        return this.getWindPhysics() !== null;
+        return this.windController.isWindSupported();
     }
 
     /**
@@ -1792,15 +1700,7 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
      * @param y - Wind Y.
      */
     setWind(x: number, y: number): void {
-        const physics = this.getWindPhysics();
-        if (!physics) {
-            return;
-        }
-
-        const options = physics.getOption();
-        options.wind.x = x;
-        options.wind.y = y;
-        physics.setOptions(options);
+        this.windController.setWind(x, y);
     }
 
     /**
@@ -1808,56 +1708,14 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
      * @return Wind vector or null when unsupported.
      */
     getWind(): Live2DModelWind | null {
-        const physics = this.getWindPhysics();
-        if (!physics) {
-            return null;
-        }
-
-        const options = physics.getOption();
-        return { x: options.wind.x, y: options.wind.y };
+        return this.windController.getWind();
     }
 
     /**
      * Smoothly transitions the wind vector.
      */
     transitionWind(definition: Live2DModelWindTransitionDefinition): Promise<void> {
-        if (!this.getWindPhysics()) {
-            return Promise.resolve();
-        }
-
-        const current = this.getWind() ?? { x: 0, y: 0 };
-        const from = definition.from ?? current;
-        const to = definition.to ?? current;
-
-        const duration = Math.max(
-            0,
-            definition.duration ?? DEFAULT_TRANSITION_DURATION,
-        );
-        const delay = Math.max(0, definition.delay ?? DEFAULT_TRANSITION_DELAY);
-        const easing = resolveEasing(definition.easing);
-
-        this.stopWindTransition();
-
-        if (duration === 0 && delay === 0) {
-            this.setWind(to.x, to.y);
-            return Promise.resolve();
-        }
-
-        this.setWind(from.x, from.y);
-
-        return new Promise((resolve) => {
-            this.activeWindTransition = {
-                elapsed: 0,
-                delay,
-                duration,
-                easing,
-                fromX: from.x,
-                fromY: from.y,
-                toX: to.x,
-                toY: to.y,
-                resolve,
-            };
-        });
+        return this.windController.transitionWind(definition);
     }
 
     /**
@@ -1868,27 +1726,21 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
         y: number,
         options: Live2DModelWindTransitionOptions = {},
     ): Promise<void> {
-        return this.transitionWind({ ...options, to: { x, y } });
+        return this.windController.windTo(x, y, options);
     }
 
     /**
      * Stops the active wind transition without altering current values.
      */
     stopWindTransition(): void {
-        if (!this.activeWindTransition) {
-            return;
-        }
-
-        const activeTransition = this.activeWindTransition;
-        this.activeWindTransition = null;
-        activeTransition.resolve();
+        this.windController.stopWindTransition();
     }
 
     /**
      * Returns whether a wind transition is currently running.
      */
     isWindTransitioning(): boolean {
-        return this.activeWindTransition !== null;
+        return this.windController.isWindTransitioning();
     }
 
     /**
@@ -2068,7 +1920,7 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
         this.stopTransition();
         this.stopParameterTransition();
         this.stopFocusTransition();
-        this.stopWindTransition();
+        this.windController.destroy();
         this.detachParameterTransitionHandler();
         this.emit("destroy");
 

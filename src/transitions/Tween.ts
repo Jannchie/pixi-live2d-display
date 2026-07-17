@@ -17,6 +17,12 @@ export class Tween<T> {
         private readonly duration: number,
         private readonly easing: Live2DModelTransitionEasingFunction,
         private readonly resolve: () => void,
+        /**
+         * Apply raw progress 0 on every update while still delayed, pinning the
+         * target to the `from` values (parameter/focus/wind behavior). Visual
+         * transitions instead leave the current state untouched during the delay.
+         */
+        private readonly applyWhileDelayed = false,
     ) {}
 
     /**
@@ -28,6 +34,9 @@ export class Tween<T> {
     update(dt: number, apply: (values: T, easedProgress: number) => void): boolean {
         this.elapsed += dt;
         if (this.elapsed < this.delay) {
+            if (this.applyWhileDelayed) {
+                apply(this.values, 0);
+            }
             return false;
         }
 
