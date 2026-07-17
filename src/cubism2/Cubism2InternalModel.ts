@@ -270,6 +270,18 @@ export class Cubism2InternalModel extends InternalModel {
     }
 
     updateFocus() {
+        // skip only when the focus contribution is exactly zero (adding 0 is a no-op);
+        // a non-zero focus must be re-applied every frame because parameters are
+        // restored by saveParam/loadParam. The eyesAlwaysLookAtCamera branch uses
+        // absolute setters and must always run.
+        if (
+            !this.eyesAlwaysLookAtCamera &&
+            this.focusController.x === 0 &&
+            this.focusController.y === 0
+        ) {
+            return;
+        }
+
         // Update head angles (always, for natural head movement)
         this.coreModel.addToParamFloat(this.angleXParamIndex, this.focusController.x * 30);
         this.coreModel.addToParamFloat(this.angleYParamIndex, this.focusController.y * 30);
