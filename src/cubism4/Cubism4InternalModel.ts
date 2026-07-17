@@ -303,7 +303,6 @@ export class Cubism4InternalModel extends InternalModel {
             // Higher compensation factor for stronger "looking at user" effect
             const eyeCompensationX = (currentAngleX / 30) * 1; // Over-compensate for stronger effect
             const eyeCompensationY = (currentAngleY / 30) * 1;
-            console.log(`Eye Compensation - X: ${eyeCompensationX}, Y: ${eyeCompensationY}`);
             // Eyes look at camera (0,0) plus compensation for head angle
             this.coreModel.setParameterValueById(this.idParamEyeBallX, -eyeCompensationX);
             this.coreModel.setParameterValueById(this.idParamEyeBallY, -eyeCompensationY);
