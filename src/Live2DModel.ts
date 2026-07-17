@@ -930,7 +930,27 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
      * @param instant - Should the focus position be instantly applied.
      */
     focus(x: number, y: number, instant: boolean = false): void {
-        void this.lookAt(x, y, { instant });
+        // allocation-free fast path: this runs on every pointermove, so avoid
+        // the Promise/options objects that lookAt() -> lookTo() would create
+        if (!this.isReady()) {
+            return;
+        }
+
+        this.stopFocusTransition();
+
+        tempPoint.x = x;
+        tempPoint.y = y;
+
+        // we can pass `true` as the third argument to skip the update transform
+        // because focus won't take effect until the model is rendered,
+        // and a model being rendered will always get transform updated
+        this.toModelPosition(tempPoint, tempPoint, true);
+
+        const tx = (tempPoint.x / this.internalModel.originalWidth) * 2 - 1;
+        const ty = (tempPoint.y / this.internalModel.originalHeight) * 2 - 1;
+        const radian = Math.atan2(ty, tx);
+
+        this.internalModel.focusController.focus(Math.cos(radian), -Math.sin(radian), instant);
     }
 
     /**
