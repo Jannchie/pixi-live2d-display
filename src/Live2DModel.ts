@@ -5,6 +5,8 @@ import { Live2DFactory } from "@/factory/Live2DFactory";
 import type { Renderer, Texture, Ticker, WebGLRenderer } from "pixi.js";
 import { Assets, Matrix, ObservablePoint, Point, Container, Rectangle } from "pixi.js";
 import { Automator, type AutomatorOptions } from "./Automator";
+import { FocusTransitionController } from "./controllers/FocusTransitionController";
+import type { Live2DModelFocusTransitionOptions } from "./controllers/FocusTransitionController";
 import { ParameterTransitionController } from "./controllers/ParameterTransitionController";
 import type {
     Live2DModelParameterTransitionDefinition,
@@ -30,18 +32,6 @@ import type { JSONObject } from "./types/helpers";
 import { logger } from "./utils";
 import { SpeechController } from "./controllers/SpeechController";
 import type { Live2DModelSpeakOptions } from "./controllers/SpeechController";
-import {
-    DEFAULT_TRANSITION_DELAY,
-    DEFAULT_TRANSITION_DURATION,
-    lerp,
-    resolveEasing,
-} from "./transitions/easings";
-import type {
-    Live2DModelTransitionEasing,
-    Live2DModelTransitionEasingFunction,
-    Live2DModelTransitionOptions,
-} from "./transitions/easings";
-
 export type {
     Live2DModelTransitionEasing,
     Live2DModelTransitionEasingName,
@@ -53,6 +43,7 @@ export type {
     Live2DModelWindTransitionOptions,
 } from "./controllers/WindController";
 export type { Live2DModelSpeakOptions } from "./controllers/SpeechController";
+export type { Live2DModelFocusTransitionOptions } from "./controllers/FocusTransitionController";
 export type {
     Live2DModelParameterTransitionDefinition,
     Live2DModelParameterTransitionOptions,
@@ -68,14 +59,6 @@ export type {
 } from "./controllers/VisualTransitionController";
 
 export type Live2DModelBreathParameter = BreathParameter;
-
-export interface Live2DModelFocusTransitionOptions extends Live2DModelTransitionOptions {
-    /**
-     * Apply the target instantly when no transition options are provided.
-     * @default false
-     */
-    instant?: boolean;
-}
 
 export interface Live2DModelOptions extends MotionManagerOptions, AutomatorOptions {
     /**
@@ -101,18 +84,6 @@ const tempPoint = new Point();
 const tempMatrix = new Matrix();
 // reused when the renderer exposes no projection matrix, to avoid a per-frame allocation
 const fallbackProjection = new Matrix();
-
-interface Live2DModelActiveFocusTransition {
-    elapsed: number;
-    delay: number;
-    duration: number;
-    easing: Live2DModelTransitionEasingFunction;
-    fromX: number;
-    fromY: number;
-    toX: number;
-    toY: number;
-    resolve: () => void;
-}
 
 export type Live2DConstructor = { new (options?: Live2DModelOptions): Live2DModel };
 
@@ -251,7 +222,7 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
 
     private visualTransitions: VisualTransitionController;
     private parameterTransitions = new ParameterTransitionController(this);
-    private activeFocusTransition: Live2DModelActiveFocusTransition | null = null;
+    private focusTransitions = new FocusTransitionController(this);
     private windController = new WindController(this);
 
     private speechController = new SpeechController(this);
@@ -463,26 +434,6 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
             : this.internalModel.motionManager.expressionManager.setExpression(id);
     }
 
-    private resolveFocusTargetFromWorld(x: number, y: number): { x: number; y: number } | null {
-        if (!this.isReady()) {
-            return null;
-        }
-
-        tempPoint.x = x;
-        tempPoint.y = y;
-
-        // we can pass `true` as the third argument to skip the update transform
-        // because focus won't take effect until the model is rendered,
-        // and a model being rendered will always get transform updated
-        this.toModelPosition(tempPoint, tempPoint, true);
-
-        const tx = (tempPoint.x / this.internalModel.originalWidth) * 2 - 1;
-        const ty = (tempPoint.y / this.internalModel.originalHeight) * 2 - 1;
-        const radian = Math.atan2(ty, tx);
-
-        return { x: Math.cos(radian), y: -Math.sin(radian) };
-    }
-
     /**
      * Smoothly moves the focus target in normalized space.
      * @param x - Focus X in range `[-1, 1]`.
@@ -490,51 +441,7 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
      * @param options - Transition options.
      */
     lookTo(x: number, y: number, options: Live2DModelFocusTransitionOptions = {}): Promise<void> {
-        if (!this.isReady()) {
-            return Promise.resolve();
-        }
-
-        this.stopFocusTransition();
-
-        const hasTransition =
-            options.duration !== undefined ||
-            options.delay !== undefined ||
-            options.easing !== undefined;
-
-        if (!hasTransition) {
-            this.internalModel.focusController.focus(x, y, options.instant ?? false);
-            return Promise.resolve();
-        }
-
-        const duration = Math.max(0, options.duration ?? DEFAULT_TRANSITION_DURATION);
-        const delay = Math.max(0, options.delay ?? DEFAULT_TRANSITION_DELAY);
-        const easing = resolveEasing(options.easing);
-        const fromX = this.internalModel.focusController.x;
-        const fromY = this.internalModel.focusController.y;
-        const toX = x;
-        const toY = y;
-
-        if (duration === 0 && delay === 0) {
-            this.internalModel.focusController.focus(toX, toY, true);
-            return Promise.resolve();
-        }
-
-        return new Promise((resolve) => {
-            const transition: Live2DModelActiveFocusTransition = {
-                elapsed: 0,
-                delay,
-                duration,
-                easing,
-                fromX,
-                fromY,
-                toX,
-                toY,
-                resolve,
-            };
-
-            this.activeFocusTransition = transition;
-            this.applyFocusTransitionProgress(transition, 0);
-        });
+        return this.focusTransitions.lookTo(x, y, options);
     }
 
     /**
@@ -548,32 +455,21 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
         y: number,
         options: Live2DModelFocusTransitionOptions = {},
     ): Promise<void> {
-        const target = this.resolveFocusTargetFromWorld(x, y);
-        if (!target) {
-            return Promise.resolve();
-        }
-
-        return this.lookTo(target.x, target.y, options);
+        return this.focusTransitions.lookAt(x, y, options);
     }
 
     /**
      * Stops the active focus transition without altering current values.
      */
     stopFocusTransition(): void {
-        if (!this.activeFocusTransition) {
-            return;
-        }
-
-        const activeTransition = this.activeFocusTransition;
-        this.activeFocusTransition = null;
-        activeTransition.resolve();
+        this.focusTransitions.stopFocusTransition();
     }
 
     /**
      * Returns whether a focus transition is currently running.
      */
     isFocusTransitioning(): boolean {
-        return this.activeFocusTransition !== null;
+        return this.focusTransitions.isFocusTransitioning();
     }
 
     /**
@@ -584,27 +480,7 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
      * @param instant - Should the focus position be instantly applied.
      */
     focus(x: number, y: number, instant: boolean = false): void {
-        // allocation-free fast path: this runs on every pointermove, so avoid
-        // the Promise/options objects that lookAt() -> lookTo() would create
-        if (!this.isReady()) {
-            return;
-        }
-
-        this.stopFocusTransition();
-
-        tempPoint.x = x;
-        tempPoint.y = y;
-
-        // we can pass `true` as the third argument to skip the update transform
-        // because focus won't take effect until the model is rendered,
-        // and a model being rendered will always get transform updated
-        this.toModelPosition(tempPoint, tempPoint, true);
-
-        const tx = (tempPoint.x / this.internalModel.originalWidth) * 2 - 1;
-        const ty = (tempPoint.y / this.internalModel.originalHeight) * 2 - 1;
-        const radian = Math.atan2(ty, tx);
-
-        this.internalModel.focusController.focus(Math.cos(radian), -Math.sin(radian), instant);
+        this.focusTransitions.focus(x, y, instant);
     }
 
     /**
@@ -710,7 +586,7 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
      */
     update(dt: DOMHighResTimeStamp): void {
         this.visualTransitions.update(dt);
-        this.updateFocusTransition(dt);
+        this.focusTransitions.update(dt);
         this.windController.update(dt);
         this.parameterTransitions.update(dt);
         this.deltaTime += dt;
@@ -818,47 +694,11 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
         return this.parameterTransitions.isParameterTransitioning();
     }
 
-    private updateFocusTransition(dt: DOMHighResTimeStamp): void {
-        const activeTransition = this.activeFocusTransition;
-        if (!activeTransition || !this.isReady()) {
-            return;
-        }
-
-        activeTransition.elapsed += dt;
-        if (activeTransition.elapsed < activeTransition.delay) {
-            this.applyFocusTransitionProgress(activeTransition, 0);
-            return;
-        }
-
-        const elapsed = activeTransition.elapsed - activeTransition.delay;
-        const progress =
-            activeTransition.duration === 0
-                ? 1
-                : Math.min(1, elapsed / activeTransition.duration);
-        const eased = activeTransition.easing(progress);
-
-        this.applyFocusTransitionProgress(activeTransition, eased);
-
-        if (progress >= 1) {
-            this.activeFocusTransition = null;
-            activeTransition.resolve();
-        }
-    }
-
-    private applyFocusTransitionProgress(
-        transition: Live2DModelActiveFocusTransition,
-        progress: number,
-    ): void {
-        if (!this.isReady()) {
-            return;
-        }
-
-        const x = lerp(transition.fromX, transition.toX, progress);
-        const y = lerp(transition.fromY, transition.toY, progress);
-
-        this.internalModel.focusController.focus(x, y, true);
-    }
-
+    // NOTE: rendering is deliberately NOT extracted into a controller. This is
+    // the Pixi integration seam (context tracking, texture extraction/binding,
+    // viewport, projection); it is tightly coupled to WebGLRenderer internals,
+    // covered only by browser snapshot tests, and extraction would add
+    // indirection without any testability gain.
     private _onRenderCallback(renderer: Renderer): void {
         // cache the renderer passed in by the render pipeline
         if (!this.renderer) {
@@ -1260,7 +1100,7 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
     ): void {
         this.visualTransitions.destroy();
         this.parameterTransitions.destroy();
-        this.stopFocusTransition();
+        this.focusTransitions.destroy();
         this.windController.destroy();
         this.emit("destroy");
 
