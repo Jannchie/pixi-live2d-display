@@ -116,7 +116,7 @@ Source can be one of the following types:
 
 ### Options
 
-`options` is a combination of the options for multiple components, see [Live2DFactoryOptions](https://guansss.github.io/pixi-live2d-display/interfaces/index.live2dfactoryoptions.html).
+`options` is a combination of the options for multiple components, see the `Live2DFactoryOptions` type in [`src/factory/Live2DFactory.ts`](https://github.com/Jannchie/pixi-live2d-display/blob/master/src/factory/Live2DFactory.ts).
 
 ### Transitions
 
@@ -254,24 +254,30 @@ To make a Live2D model "live", it needs to be updated at every frame. This is do
 
 ### Updating automatically
 
-This is the default behavior. Model will use `PIXI.Ticker.shared` to automatically update themselves.
+This is the default behavior. The model needs a `Ticker` to update itself, and there are a few ways to provide one.
 
-The easiest way to achieve this is to import a full build of Pixi and expose `PIXI` to global scope, so that the model can access Ticker from `window.PIXI.Ticker`:
+The recommended way is to pass a ticker when creating the model:
+
+```js
+import { Ticker } from 'pixi.js';
+
+const model = await Live2DModel.from('shizuku.model.json', { ticker: Ticker.shared });
+```
+
+Alternatively, you can register a default ticker class for all models:
+
+```js
+import { Ticker } from 'pixi.js';
+
+Live2DModel.registerTicker(Ticker);
+```
+
+Or expose `PIXI` to global scope, so that the model can access `window.PIXI.Ticker.shared`:
 
 ```js
 import * as PIXI from 'pixi.js';
 
 window.PIXI = PIXI;
-```
-
-Otherwise, you need to manually register the `Ticker` and `TickerPlugin`:
-
-```js
-import { Application } from '@pixi/app';
-import { Ticker, TickerPlugin } from '@pixi/ticker';
-
-Application.registerPlugin(TickerPlugin);
-Live2DModel.registerTicker(Ticker);
 ```
 
 ### Updating manually
@@ -281,7 +287,7 @@ To manually update the model, you need to first disable the `autoUpdate` option,
 Using Ticker:
 
 ```js
-import { Ticker } from '@pixi/ticker';
+import { Ticker } from 'pixi.js';
 
 const model = await Live2DModel.from('shizuku.model.json', { autoUpdate: false });
 

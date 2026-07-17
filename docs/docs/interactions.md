@@ -18,29 +18,24 @@ There are two basic interactions on Live2D models:
 
 ### Interacting Automatically
 
-This is the default behavior. Model will use Pixi's `InteractionManager` to automatically interact.
+This is the default behavior. The model relies on PixiJS v8's built-in [federated event system](https://pixijs.com/8.x/guides/components/events): its `eventMode` is automatically set to `"static"`, so it reacts to pointer events out of the box.
 
-The easiest way is to import a full build of Pixi, so that `InteractionManager` is registered out of the box.
+Automatic interaction is controlled by two options:
 
-```js
-import * as PIXI from 'pixi.js';
-```
+- `autoFocus`: the model looks at the pointer when it moves (`globalpointermove`)
+- `autoHitTest`: the model performs hit-testing when tapped (`pointertap`), emitting the `hit` event
 
-Otherwise, you need to manually register it as plugin:
-
-```js
-import { Renderer } from '@pixi/core';
-import { InteractionManager } from '@pixi/interaction';
-
-Renderer.registerPlugin('interaction', InteractionManager);
-```
+Both default to `true`. The legacy `autoInteract` option is deprecated; it's now just a shorthand for setting both options at once.
 
 ### Interacting Manually
 
-If you don't want the default behavior, you can turn off the `autoInteract` option when creating a model, then manually call the interaction methods.
+If you don't want the default behavior, you can turn off the `autoFocus` and `autoHitTest` options when creating a model, then manually call the interaction methods.
 
 ```js
-const model = await Live2DModel.from('shizuku.model.json', { autoInteract: false });
+const model = await Live2DModel.from('shizuku.model.json', {
+    autoFocus: false,
+    autoHitTest: false,
+});
 
 canvasElement.addEventListener('pointermove', (event) => model.focus(event.clientX, event.clientY));
 

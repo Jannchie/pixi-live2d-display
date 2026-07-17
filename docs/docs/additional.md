@@ -13,18 +13,18 @@ const hitAreaFrames = new HitAreaFrames();
 model.addChild(hitAreaFrames);
 ```
 
-This class depends on `@pixi/graphics` and `@pixi/text`, therefore it's excluded from the main bundle to avoid involving unnecessary dependency.
+This class depends on PixiJS's `Graphics` and `Text`, therefore it's excluded from the main bundle to avoid involving unnecessary dependency.
 
 You can import it from the `extra` bundle.
 
 ```js
-import { HitAreaFrames } from 'pixi-live2d-display/extra';
+import { HitAreaFrames } from '@jannchie/pixi-live2d-display/extra';
 ```
 
 For using CDNs, you can load it like this:
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display/dist/extra.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@jannchie/pixi-live2d-display/dist/extra.min.js"></script>
 ```
 
 Then, access it from `PIXI.live2d.HitAreaFrames`.

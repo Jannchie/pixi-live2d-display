@@ -1,8 +1,10 @@
 # pixi-live2d-display
 
-![GitHub package.json version](https://img.shields.io/github/package-json/v/guansss/pixi-live2d-display?style=flat-square)
+![NPM Version](https://img.shields.io/npm/v/%40jannchie%2Fpixi-live2d-display?style=flat-square)
 ![Cubism version](https://img.shields.io/badge/Cubism-2/3/4-ff69b4?style=flat-square)
-![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/guansss/pixi-live2d-display/test.yml?style=flat-square)
+![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/Jannchie/pixi-live2d-display/test.yml?style=flat-square)
+
+[English](README.md) | 中文
 
 为 [PixiJS](https://github.com/pixijs/pixi.js) v8 提供的 Live2D 插件
 
@@ -10,7 +12,8 @@
 
 ## 维护者
 
-此处由 [Jannchie](mailto:jannchie@gmail.com) 维护。
+此仓库由 [Jannchie](mailto:jannchie@gmail.com) 维护，以
+[`@jannchie/pixi-live2d-display`](https://www.npmjs.com/package/@jannchie/pixi-live2d-display) 的包名发布在 npm 上。
 
 最初由 [guansss](https://github.com/guansss) 创建。感谢原作者的基础工作。
 
@@ -21,25 +24,30 @@
 - Pixi 风格的变换 API：position, scale, rotation, skew, anchor
 - 自动交互：鼠标跟踪, 点击命中检测
 - 比官方框架更好的动作预约逻辑
+- 口型同步：支持音频播放（`speak()`）、麦克风输入或手动控制
+- 可在运行时开关自动眨眼、呼吸和风（Cubism 4 物理）效果
 - 从上传的文件或 zip 文件中加载 (实验性功能)
 - 完善的类型定义 - 我们都喜欢类型！
 
 #### 要求
 
 - PixiJS：8.x
-- 浏览器：WebGL， ES6
+- Cubism core：2.1 或 4
+- 浏览器：WebGL，ES6
 
 #### 示例
 
-- [基础示例](https://codepen.io/guansss/pen/oNzoNoz/left?editors=1010)
-- [交互示例](https://codepen.io/guansss/pen/KKgXBOP/left?editors=0010)
-- [渲染纹理与滤镜示例](https://codepen.io/guansss/pen/qBaMNQV/left?editors=1010)
 - [Live2D Viewer Online](https://guansss.github.io/live2d-viewer-web/)
+- 原项目的示例（[基础](https://codepen.io/guansss/pen/oNzoNoz/left?editors=1010)、
+  [交互](https://codepen.io/guansss/pen/KKgXBOP/left?editors=0010)、
+  [渲染纹理与滤镜](https://codepen.io/guansss/pen/qBaMNQV/left?editors=1010)）基于原版
+  `pixi-live2d-display` 包和 PixiJS v6，初始化代码与本包有所不同
+- 想看最新的用法示例，可以在本仓库运行 playground（`pnpm playground`）
 
 #### 文档
 
-- [文档](https://guansss.github.io/pixi-live2d-display)（暂无中文翻译）
-- [API 文档](https://guansss.github.io/pixi-live2d-display/api/index.html)
+- [使用指南](docs/docs/index.md)（位于本仓库 `docs/docs/` 目录，暂无中文翻译）
+- [开发指南](DEVELOPMENT.md)
 
 ## Cubism
 
@@ -78,29 +86,33 @@ Cubism 2.1 需要加载 `live2d.min.js`，[从 2019/9/4 起](https://help.live2d
 #### 通过 npm
 
 ```sh
-npm install pixi-live2d-display
+npm install @jannchie/pixi-live2d-display pixi.js
 ```
 
 ```js
-import { Live2DModel } from 'pixi-live2d-display';
+import { Live2DModel } from '@jannchie/pixi-live2d-display';
 
 // 如果只需要 Cubism 2.1
-import { Live2DModel } from 'pixi-live2d-display/cubism2';
+import { Live2DModel } from '@jannchie/pixi-live2d-display/cubism2';
 
 // 如果只需要 Cubism 4
-import { Live2DModel } from 'pixi-live2d-display/cubism4';
+import { Live2DModel } from '@jannchie/pixi-live2d-display/cubism4';
 ```
 
 #### 通过 CDN
 
+UMD 打包文件依赖全局的 `PIXI` 命名空间，因此需要先加载 PixiJS
+
 ```html
-<script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display/dist/index.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pixi.js@8/dist/pixi.min.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/@jannchie/pixi-live2d-display/dist/index.min.js"></script>
 
 <!-- 如果只需要 Cubism 2.1 -->
-<script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display/dist/cubism2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@jannchie/pixi-live2d-display/dist/cubism2.min.js"></script>
 
 <!-- 如果只需要 Cubism 4 -->
-<script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display/dist/cubism4.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@jannchie/pixi-live2d-display/dist/cubism4.min.js"></script>
 ```
 
 通过这种方式加载的话，所有成员都会被导出到 `PIXI.live2d` 命名空间下，比如 `PIXI.live2d.Live2DModel`
@@ -108,18 +120,22 @@ import { Live2DModel } from 'pixi-live2d-display/cubism4';
 ## 基础使用
 
 ```javascript
-import * as PIXI from 'pixi.js';
-import { Live2DModel } from 'pixi-live2d-display';
-
-// 将 PIXI 暴露到 window 上，这样插件就可以通过 window.PIXI.Ticker 来自动更新模型
-window.PIXI = PIXI;
+import { Application, Ticker } from 'pixi.js';
+import { Live2DModel } from '@jannchie/pixi-live2d-display';
 
 (async function () {
-    const app = new PIXI.Application({
-        view: document.getElementById('canvas'),
+    const app = new Application();
+
+    // PixiJS v8 的初始化是异步的
+    await app.init({
+        canvas: document.getElementById('canvas'),
+        resizeTo: window,
     });
 
-    const model = await Live2DModel.from('shizuku.model.json');
+    // 传入 ticker 以便模型自动更新
+    const model = await Live2DModel.from('shizuku.model.json', {
+        ticker: Ticker.shared,
+    });
 
     app.stage.addChild(model);
 
@@ -140,34 +156,28 @@ window.PIXI = PIXI;
 })();
 ```
 
-## 包导入
-
-当按需导入 Pixi 的包时，需要手动注册相应的组件来启用可选功能
+如果不传入 `ticker` 选项，也可以把 PIXI 暴露到全局，插件会自动使用 `window.PIXI.Ticker.shared`：
 
 ```javascript
-import { Application } from '@pixi/app';
-import { Ticker } from '@pixi/ticker';
-import { InteractionManager } from '@pixi/interaction';
-import { Live2DModel } from 'pixi-live2d-display';
+import * as PIXI from 'pixi.js';
 
-// 为 Live2DModel 注册 Ticker
-Live2DModel.registerTicker(Ticker);
+window.PIXI = PIXI;
+```
 
-// 为 Application 注册 Ticker
-Application.registerPlugin(TickerPlugin);
+## 口型同步
 
-// 注册 InteractionManager 以支持 Live2D 模型的自动交互
-Renderer.registerPlugin('interaction', InteractionManager);
+```javascript
+// 播放音频文件（或 base64 data URL）并自动同步口型
+await model.speak('voice.mp3', { volume: 1 });
 
-(async function () {
-    const app = new Application({
-        view: document.getElementById('canvas'),
-    });
+// 或者使用麦克风输入驱动口型
+await model.startMicrophoneLipSync();
+model.stopMicrophoneLipSync();
 
-    const model = await Live2DModel.from('shizuku.model.json');
-
-    app.stage.addChild(model);
-})();
+// 或者手动控制口型开合（0 = 闭合，1 = 张开）
+model.startLipSync();
+model.setLipSyncValue(0.8);
+model.stopLipSync();
 ```
 
 ---

@@ -25,7 +25,7 @@ Motion preloading is here to help. It preloads motion during model creation to e
 By default, only idle motions will be preloaded. You can change this by setting the `motionPreload` option.
 
 ```js
-import { MotionPreloadStrategy } from 'pixi-live2d-display';
+import { MotionPreloadStrategy } from '@jannchie/pixi-live2d-display';
 
 // MotionPreloadStrategy.ALL
 // MotionPreloadStrategy.IDLE
@@ -66,7 +66,7 @@ A motion can be started as one of these priorities: `IDLE`, `NORMAL` and `FORCE`
 `NONE`: No priority. This cannot be assigned to a motion, it's internally used to represent the state that there's no any motion playing.
 
 ```js
-import { MotionPriority } from 'pixi-live2d-display';
+import { MotionPriority } from '@jannchie/pixi-live2d-display';
 
 model.motion('tap_body', 0, MotionPriority.NORMAL);
 
@@ -154,7 +154,7 @@ If the motion is specified with a sound file, it'll be played together with this
 You can also set a global volume to all active audios, and it will also affect audios created in the future.
 
 ```js
-import { SoundManager } from 'pixi-live2d-display';
+import { SoundManager } from '@jannchie/pixi-live2d-display';
 
 SoundManager.volume = 0.5;
 ```

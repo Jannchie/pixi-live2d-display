@@ -1,8 +1,8 @@
 # pixi-live2d-display
 
-![GitHub package.json version](https://img.shields.io/github/package-json/v/guansss/pixi-live2d-display?style=flat-square)
+![NPM Version](https://img.shields.io/npm/v/%40jannchie%2Fpixi-live2d-display?style=flat-square)
 ![Cubism version](https://img.shields.io/badge/Cubism-2/3/4-ff69b4?style=flat-square)
-![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/guansss/pixi-live2d-display/test.yml?style=flat-square)
+![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/Jannchie/pixi-live2d-display/test.yml?style=flat-square)
 
 English | [中文](README.zh.md)
 
@@ -14,7 +14,8 @@ Live2D models on a high level without the need to learn how the internal system 
 
 ## Maintainer
 
-This repo maintained by [Jannchie](mailto:jannchie@gmail.com).
+This repo is maintained by [Jannchie](mailto:jannchie@gmail.com), published on npm
+as [`@jannchie/pixi-live2d-display`](https://www.npmjs.com/package/@jannchie/pixi-live2d-display).
 
 Originally created by [guansss](https://github.com/guansss). Credit to the original author for the foundational work.
 
@@ -25,6 +26,8 @@ Originally created by [guansss](https://github.com/guansss). Credit to the origi
 - Pixi-style transform APIs: position, scale, rotation, skew, anchor
 - Automatic interactions: focusing, hit-testing
 - Enhanced motion reserving logic compared to the official framework
+- Lip sync: from audio playback (`speak()`), microphone input, or manual values
+- Runtime toggles for eye blink, breathing, and wind (Cubism 4 physics)
 - Loading from uploaded files / zip files (experimental)
 - Fully typed - we all love types!
 
@@ -36,15 +39,16 @@ Originally created by [guansss](https://github.com/guansss). Credit to the origi
 
 #### Demos
 
-- [Basic demo](https://codepen.io/guansss/pen/oNzoNoz/left?editors=1010)
-- [Interaction demo](https://codepen.io/guansss/pen/KKgXBOP/left?editors=0010)
-- [Render texture & filter demo](https://codepen.io/guansss/pen/qBaMNQV/left?editors=1010)
 - [Live2D Viewer Online](https://guansss.github.io/live2d-viewer-web/)
+- The demos of the original project ([basic](https://codepen.io/guansss/pen/oNzoNoz/left?editors=1010),
+  [interaction](https://codepen.io/guansss/pen/KKgXBOP/left?editors=0010),
+  [render texture & filter](https://codepen.io/guansss/pen/qBaMNQV/left?editors=1010)) are based on the
+  original `pixi-live2d-display` package and PixiJS v6, so the setup code differs from this package
+- For an up-to-date example, run the playground in this repo (`pnpm playground`)
 
 #### Documentations
 
-- [Documentation](https://guansss.github.io/pixi-live2d-display)
-- [API Documentation](https://guansss.github.io/pixi-live2d-display/api/index.html)
+- [Guides](docs/docs/index.md) (in this repo, see `docs/docs/`)
 - [Development Notes](DEVELOPMENT.md)
 
 ## Cubism
@@ -90,29 +94,33 @@ To make it clear, here's how you would use these files:
 #### Via npm
 
 ```sh
-npm install pixi-live2d-display
+npm install @jannchie/pixi-live2d-display pixi.js
 ```
 
 ```js
-import { Live2DModel } from 'pixi-live2d-display';
+import { Live2DModel } from '@jannchie/pixi-live2d-display';
 
 // if only Cubism 2.1
-import { Live2DModel } from 'pixi-live2d-display/cubism2';
+import { Live2DModel } from '@jannchie/pixi-live2d-display/cubism2';
 
 // if only Cubism 4
-import { Live2DModel } from 'pixi-live2d-display/cubism4';
+import { Live2DModel } from '@jannchie/pixi-live2d-display/cubism4';
 ```
 
 #### Via CDN
 
+PixiJS must be loaded first, as the UMD bundles depend on the global `PIXI` namespace.
+
 ```html
-<script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display/dist/index.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pixi.js@8/dist/pixi.min.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/@jannchie/pixi-live2d-display/dist/index.min.js"></script>
 
 <!-- if only Cubism 2.1 -->
-<script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display/dist/cubism2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@jannchie/pixi-live2d-display/dist/cubism2.min.js"></script>
 
 <!-- if only Cubism 4 -->
-<script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display/dist/cubism4.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@jannchie/pixi-live2d-display/dist/cubism4.min.js"></script>
 ```
 
 In this way, all the exported members are available under `PIXI.live2d` namespace, such as `PIXI.live2d.Live2DModel`.
@@ -120,19 +128,22 @@ In this way, all the exported members are available under `PIXI.live2d` namespac
 ## Basic usage
 
 ```javascript
-import * as PIXI from 'pixi.js';
-import { Live2DModel } from 'pixi-live2d-display';
-
-// expose PIXI to window so that this plugin is able to
-// reference window.PIXI.Ticker to automatically update Live2D models
-window.PIXI = PIXI;
+import { Application, Ticker } from 'pixi.js';
+import { Live2DModel } from '@jannchie/pixi-live2d-display';
 
 (async function () {
-  const app = new PIXI.Application({
-    view: document.getElementById('canvas'),
+  const app = new Application();
+
+  // PixiJS v8 initializes asynchronously
+  await app.init({
+    canvas: document.getElementById('canvas'),
+    resizeTo: window,
   });
 
-  const model = await Live2DModel.from('shizuku.model.json');
+  // pass a ticker so the model can update itself automatically
+  const model = await Live2DModel.from('shizuku.model.json', {
+    ticker: Ticker.shared,
+  });
 
   app.stage.addChild(model);
 
@@ -153,34 +164,29 @@ window.PIXI = PIXI;
 })();
 ```
 
-## Package importing
-
-When importing Pixi packages on-demand, you may need to manually register some plugins to enable optional features.
+If you don't pass the `ticker` option, you can instead expose PIXI to the global scope so the plugin picks
+up `window.PIXI.Ticker.shared`:
 
 ```javascript
-import { Application } from '@pixi/app';
-import { Ticker, TickerPlugin } from '@pixi/ticker';
-import { InteractionManager } from '@pixi/interaction';
-import { Live2DModel } from 'pixi-live2d-display';
+import * as PIXI from 'pixi.js';
 
-// register Ticker for Live2DModel
-Live2DModel.registerTicker(Ticker);
+window.PIXI = PIXI;
+```
 
-// register Ticker for Application
-Application.registerPlugin(TickerPlugin);
+## Lip sync
 
-// register InteractionManager to make Live2D models interactive
-Renderer.registerPlugin('interaction', InteractionManager);
+```javascript
+// play an audio file (or base64 data URL) with automatic lip sync
+await model.speak('voice.mp3', { volume: 1 });
 
-(async function () {
-  const app = new Application({
-    view: document.getElementById('canvas'),
-  });
+// or drive the mouth with microphone input
+await model.startMicrophoneLipSync();
+model.stopMicrophoneLipSync();
 
-  const model = await Live2DModel.from('shizuku.model.json');
-
-  app.stage.addChild(model);
-})();
+// or control the value manually (0 = closed, 1 = open)
+model.startLipSync();
+model.setLipSyncValue(0.8);
+model.stopLipSync();
 ```
 
 ---

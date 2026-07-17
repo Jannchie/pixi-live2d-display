@@ -1,85 +1,65 @@
 ## Cloning the repo
 
-#### Cloning via SSH
-
-Run the following command to clone the repo with submodule:
+Clone the repo with its submodule (the Cubism Web Framework):
 
 ```sh
-git clone git@github.com:guansss/pixi-live2d-display.git --recursive
+git clone https://github.com/Jannchie/pixi-live2d-display.git --recursive
 ```
 
-#### Cloning via HTTPS
-
-Run the following command to clone the repo _without_ submodule:
+Or via SSH:
 
 ```sh
-git clone https://github.com/guansss/pixi-live2d-display.git
+git clone git@github.com:Jannchie/pixi-live2d-display.git --recursive
 ```
 
-Then follow one of the following methods to manually install the submodule:
-
-**Method 1**
+If you have already cloned it without `--recursive`, run:
 
 ```sh
-git config --global url."https://github.com/guansss/CubismWebFramework.git".insteadOf "git@github.com:guansss/CubismWebFramework.git"
-
-git submodule sync
-git submodule update --init
-```
-
-**Method 2**
-
-Edit `.gitmodules` and replace `git@github.com:guansss/CubismWebFramework.git` with `https://github.com/guansss/CubismWebFramework.git` (don't commit this change if you are contributing to this project!).
-
-Then run:
-
-```sh
-git submodule sync
 git submodule update --init
 ```
 
 ## Setup
 
+This project uses [pnpm](https://pnpm.io/) as the package manager.
+
 Install dependencies:
 
 ```sh
-npm install
+pnpm install
 ```
 
 Download Live2D core files into `./core`:
 
 ```sh
-npm run setup
+pnpm run setup
 ```
 
 ## Testing
 
-There's a bundle test that requires a production build. Before running the tests for the first time, you need to build the project: (at some point I will automate this step so you don't have to do it manually)
+Tests run in a real Chrome browser via Vitest and WebdriverIO. There's a bundle test that requires a production build, so before running the tests for the first time, you need to build the project:
 
 ```sh
-npm run build
+pnpm build
 ```
 
 Then you can run the tests:
 
 ```sh
-npm run test
+pnpm test
 ```
 
 Or run the tests and update snapshots:
 
 ```sh
-npm run test:u
+pnpm test:u
 ```
-
-If you get an error like `This version of ChromeDriver only supports Chrome version XX`, you need to either upgrade or downgrade your Chrome browser to match that version, or run `npm install chromedriver@<version>` to install the correct version of ChromeDriver (don't commit this change if you are contributing to this project!).
 
 ## Playground
 
 The playground is for debugging and testing. To run the playground:
 
 ```sh
-npm run playground
+pnpm playground
 ```
 
 Then make changes to `playground/index.ts` and check the result.
@@ -97,7 +77,7 @@ Contributions are welcome! Please open an issue or submit a pull request if you 
 Before contributing, or better yet, before each commit, please run the following command to lint and fix the code:
 
 ```sh
-npm run lint:fix
+pnpm lint:fix
 ```
 
 If there are any errors that cannot be fixed automatically, please fix them manually.
