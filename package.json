@@ -1,6 +1,6 @@
 {
   "name": "@jannchie/pixi-live2d-display",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Live2D plugin for PixiJS",
   "packageManager": "pnpm@10.28.0",
   "main": "dist/index.js",

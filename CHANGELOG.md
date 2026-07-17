@@ -1,3 +1,41 @@
+## v1.4.0
+
+[v1.3.0...v1.4.0](https://github.com/Jannchie/pixi-live2d-display/compare/v1.3.0...v1.4.0)
+
+### :zap: Performance
+
+- remove per-frame console.log in updateFocus - By [Jannchie](mailto:jannchie@gmail.com) in [9e7ced0](https://github.com/Jannchie/pixi-live2d-display/commit/9e7ced0)
+- allocation-free fast path for focus() - By [Jannchie](mailto:jannchie@gmail.com) in [66901e4](https://github.com/Jannchie/pixi-live2d-display/commit/66901e4)
+- cache extracted WebGL textures across frames - By [Jannchie](mailto:jannchie@gmail.com) in [4555086](https://github.com/Jannchie/pixi-live2d-display/commit/4555086)
+- remove per-frame framebuffer readback and render-path allocations - By [Jannchie](mailto:jannchie@gmail.com) in [8de6a4e](https://github.com/Jannchie/pixi-live2d-display/commit/8de6a4e)
+- skip focus parameter writes when focus is at exact zero - By [Jannchie](mailto:jannchie@gmail.com) in [f88e720](https://github.com/Jannchie/pixi-live2d-display/commit/f88e720)
+
+### :art: Refactors
+
+- extract easing helpers and Tween primitive to src/transitions - By [Jannchie](mailto:jannchie@gmail.com) in [68f3f64](https://github.com/Jannchie/pixi-live2d-display/commit/68f3f64)
+- extract WindController from Live2DModel - By [Jannchie](mailto:jannchie@gmail.com) in [c7f4bd8](https://github.com/Jannchie/pixi-live2d-display/commit/c7f4bd8)
+- extract SpeechController from Live2DModel - By [Jannchie](mailto:jannchie@gmail.com) in [1b2febf](https://github.com/Jannchie/pixi-live2d-display/commit/1b2febf)
+- extract VisualTransitionController from Live2DModel - By [Jannchie](mailto:jannchie@gmail.com) in [140fc83](https://github.com/Jannchie/pixi-live2d-display/commit/140fc83)
+- extract ParameterTransitionController from Live2DModel - By [Jannchie](mailto:jannchie@gmail.com) in [5f2fe5f](https://github.com/Jannchie/pixi-live2d-display/commit/5f2fe5f)
+- extract FocusTransitionController from Live2DModel - By [Jannchie](mailto:jannchie@gmail.com) in [97d21a5](https://github.com/Jannchie/pixi-live2d-display/commit/97d21a5)
+
+### :white_check_mark: Tests
+
+- cover lip sync, eyes, breathing, wind and focus delegation - By [Jannchie](mailto:jannchie@gmail.com) in [0cb6d9f](https://github.com/Jannchie/pixi-live2d-display/commit/0cb6d9f)
+
+### :memo: Documentation
+
+- update package name, repo links, and examples for the v8 fork - By [Jannchie](mailto:jannchie@gmail.com) in [8f61e5c](https://github.com/Jannchie/pixi-live2d-display/commit/8f61e5c)
+
+### :wrench: Chores
+
+- **deps**: update dev dependencies - By [Jannchie](mailto:jannchie@gmail.com) in [e3b84fd](https://github.com/Jannchie/pixi-live2d-display/commit/e3b84fd)
+- **ci**: publish to npm via OIDC trusted publishing - By [Jannchie](mailto:jannchie@gmail.com) in [1b77e06](https://github.com/Jannchie/pixi-live2d-display/commit/1b77e06)
+
+## v1.3.0
+
+[v1.2.0...v1.3.0](https://github.com/Jannchie/pixi-live2d-display/compare/v1.2.0...v1.3.0)
+
 ## v1.2.0
 
 [v1.1.3...v1.2.0](https://github.com/Jannchie/pixi-live2d-display/compare/v1.1.3...v1.2.0)
