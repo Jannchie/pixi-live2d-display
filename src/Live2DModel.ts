@@ -13,7 +13,9 @@ import type {
 } from "./controllers/WindController";
 import { Live2DTransform } from "./Live2DTransform";
 import type { JSONObject } from "./types/helpers";
-import { logger, AudioAnalyzer } from "./utils";
+import { logger } from "./utils";
+import { SpeechController } from "./controllers/SpeechController";
+import type { Live2DModelSpeakOptions } from "./controllers/SpeechController";
 import {
     DEFAULT_TRANSITION_DELAY,
     DEFAULT_TRANSITION_DURATION,
@@ -36,6 +38,7 @@ export type {
     Live2DModelWindTransitionDefinition,
     Live2DModelWindTransitionOptions,
 } from "./controllers/WindController";
+export type { Live2DModelSpeakOptions } from "./controllers/SpeechController";
 
 export interface Live2DModelTransitionScale {
     x?: number;
@@ -495,15 +498,7 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
     private activeFocusTransition: Live2DModelActiveFocusTransition | null = null;
     private windController = new WindController(this);
 
-    /**
-     * Audio analyzer for speech recognition and lip sync.
-     */
-    private audioAnalyzer: AudioAnalyzer | null = null;
-
-    /**
-     * Current speaking state.
-     */
-    private isSpeaking = false;
+    private speechController = new SpeechController(this);
 
     constructor(options?: Live2DModelOptions) {
         super();
@@ -1562,19 +1557,14 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
      * Starts lip sync animation.
      */
     startLipSync(): void {
-        if (this.isReady()) {
-            this.internalModel.setLipSyncEnabled(true);
-        }
+        this.speechController.startLipSync();
     }
 
     /**
      * Stops lip sync animation.
      */
     stopLipSync(): void {
-        if (this.isReady()) {
-            this.internalModel.setLipSyncEnabled(false);
-            this.internalModel.setLipSyncValue(0);
-        }
+        this.speechController.stopLipSync();
     }
 
     /**
@@ -1582,9 +1572,7 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
      * @param value - Lip sync value (0-1), where 0 is closed mouth and 1 is fully open.
      */
     setLipSyncValue(value: number): void {
-        if (this.isReady()) {
-            this.internalModel.setLipSyncValue(value);
-        }
+        this.speechController.setLipSyncValue(value);
     }
 
     /**
@@ -1592,7 +1580,7 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
      * @return Whether lip sync is enabled.
      */
     isLipSyncEnabled(): boolean {
-        return this.isReady() ? this.internalModel.lipSyncEnabled : false;
+        return this.speechController.isLipSyncEnabled();
     }
 
     /**
@@ -1600,7 +1588,7 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
      * @return Current lip sync value (0-1).
      */
     getLipSyncValue(): number {
-        return this.isReady() ? this.internalModel.lipSyncValue : 0;
+        return this.speechController.getLipSyncValue();
     }
 
     /**
@@ -1776,73 +1764,15 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
      * @param audioData - Base64 audio data or audio URL
      * @param options - Speaking options
      */
-    async speak(
-        audioData: string,
-        options: {
-            volume?: number;
-            expression?: string;
-            resetExpression?: boolean;
-            onFinish?: () => void;
-            onError?: (error: Error) => void;
-        } = {}
-    ): Promise<void> {
-        if (!this.isReady()) {
-            throw new Error('Model is not ready');
-        }
-
-        if (this.isSpeaking) {
-            this.stopSpeaking();
-        }
-
-        try {
-            this.isSpeaking = true;
-            
-            // Initialize audio analyzer if needed
-            if (!this.audioAnalyzer) {
-                this.audioAnalyzer = new AudioAnalyzer();
-            }
-
-            // Start lip sync
-            this.startLipSync();
-
-            // Play and analyze audio
-            await this.audioAnalyzer.playAndAnalyze(audioData, (volume) => {
-                // Apply volume-based lip sync
-                const lipSyncValue = Math.min(1, volume * (options.volume || 1));
-                this.setLipSyncValue(lipSyncValue);
-            });
-
-            // Speaking finished
-            this.isSpeaking = false;
-            this.setLipSyncValue(0);
-            
-            if (options.onFinish) {
-                options.onFinish();
-            }
-        } catch (error) {
-            this.isSpeaking = false;
-            this.setLipSyncValue(0);
-            
-            const errorObj = error instanceof Error ? error : new Error(String(error));
-            if (options.onError) {
-                options.onError(errorObj);
-            } else {
-                console.error('Speaking error:', errorObj);
-            }
-        }
+    speak(audioData: string, options: Live2DModelSpeakOptions = {}): Promise<void> {
+        return this.speechController.speak(audioData, options);
     }
 
     /**
      * Stop current speaking.
      */
     stopSpeaking(): void {
-        if (this.audioAnalyzer) {
-            this.audioAnalyzer.destroy();
-            this.audioAnalyzer = null;
-        }
-        
-        this.isSpeaking = false;
-        this.setLipSyncValue(0);
+        this.speechController.stopSpeaking();
     }
 
     /**
@@ -1850,50 +1780,22 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
      * @return Whether the model is currently speaking.
      */
     isSpeakingNow(): boolean {
-        return this.isSpeaking;
+        return this.speechController.isSpeakingNow();
     }
 
     /**
      * Start microphone input for real-time lip sync.
      * @param onError - Error callback
      */
-    async startMicrophoneLipSync(onError?: (error: Error) => void): Promise<void> {
-        if (!this.isReady()) {
-            throw new Error('Model is not ready');
-        }
-
-        try {
-            // Initialize audio analyzer if needed
-            if (!this.audioAnalyzer) {
-                this.audioAnalyzer = new AudioAnalyzer();
-            }
-
-            // Start lip sync
-            this.startLipSync();
-
-            // Start microphone capture
-            await this.audioAnalyzer.startMicrophone((volume) => {
-                // Apply volume-based lip sync
-                this.setLipSyncValue(volume);
-            });
-        } catch (error) {
-            const errorObj = error instanceof Error ? error : new Error(String(error));
-            if (onError) {
-                onError(errorObj);
-            } else {
-                console.error('Microphone error:', errorObj);
-            }
-        }
+    startMicrophoneLipSync(onError?: (error: Error) => void): Promise<void> {
+        return this.speechController.startMicrophoneLipSync(onError);
     }
 
     /**
      * Stop microphone input.
      */
     stopMicrophoneLipSync(): void {
-        if (this.audioAnalyzer) {
-            this.audioAnalyzer.stopMicrophone();
-        }
-        this.setLipSyncValue(0);
+        this.speechController.stopMicrophoneLipSync();
     }
 
     /**
@@ -1961,12 +1863,7 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
         this.cachedGlTextures.length = 0;
 
         this.automator.destroy();
-
-        // Clean up audio resources
-        if (this.audioAnalyzer) {
-            this.audioAnalyzer.destroy();
-            this.audioAnalyzer = null;
-        }
+        this.speechController.destroy();
 
         if (this.isReady()) {
             this.internalModel.destroy();
