@@ -8,18 +8,23 @@ import { Automator, type AutomatorOptions } from "./Automator";
 import { Live2DTransform } from "./Live2DTransform";
 import type { JSONObject } from "./types/helpers";
 import { logger, AudioAnalyzer } from "./utils";
+import {
+    DEFAULT_TRANSITION_DELAY,
+    DEFAULT_TRANSITION_DURATION,
+    lerp,
+    resolveEasing,
+} from "./transitions/easings";
+import type {
+    Live2DModelTransitionEasing,
+    Live2DModelTransitionEasingFunction,
+    Live2DModelTransitionOptions,
+} from "./transitions/easings";
 
-export type Live2DModelTransitionEasingName =
-    | "linear"
-    | "easeInQuad"
-    | "easeOutQuad"
-    | "easeInOutQuad"
-    | "easeInCubic"
-    | "easeOutCubic";
-
-export type Live2DModelTransitionEasing =
-    | Live2DModelTransitionEasingName
-    | ((progress: number) => number);
+export type {
+    Live2DModelTransitionEasing,
+    Live2DModelTransitionEasingName,
+    Live2DModelTransitionOptions,
+} from "./transitions/easings";
 
 export interface Live2DModelTransitionScale {
     x?: number;
@@ -35,26 +40,6 @@ export interface Live2DModelTransitionState {
     y?: number;
     rotation?: number;
     scale?: number | Live2DModelTransitionScale;
-}
-
-export interface Live2DModelTransitionOptions {
-    /**
-     * Transition duration in milliseconds.
-     * @default 500
-     */
-    duration?: number;
-
-    /**
-     * Delay before the transition starts in milliseconds.
-     * @default 0
-     */
-    delay?: number;
-
-    /**
-     * Easing function or preset name.
-     * @default "linear"
-     */
-    easing?: Live2DModelTransitionEasing;
 }
 
 export interface Live2DModelTransitionDefinition extends Live2DModelTransitionOptions {
@@ -173,8 +158,6 @@ const tempMatrix = new Matrix();
 // reused when the renderer exposes no projection matrix, to avoid a per-frame allocation
 const fallbackProjection = new Matrix();
 
-type Live2DModelTransitionEasingFunction = (progress: number) => number;
-
 interface Live2DModelTransitionStateValues {
     alpha?: number;
     x?: number;
@@ -251,8 +234,6 @@ interface Live2DModelActiveWindTransition {
     resolve: () => void;
 }
 
-const DEFAULT_TRANSITION_DURATION = 500;
-const DEFAULT_TRANSITION_DELAY = 0;
 const DEFAULT_APPEAR_TRANSITION: Live2DModelTransitionDefinition = {
     duration: 500,
     easing: "easeOutQuad",
@@ -275,33 +256,6 @@ const CUBISM2_EYE_PARAM_IDS = {
     ballX: "PARAM_EYE_BALL_X",
     ballY: "PARAM_EYE_BALL_Y",
 };
-
-const easingPresets: Record<Live2DModelTransitionEasingName, Live2DModelTransitionEasingFunction> =
-    {
-        linear: (progress) => progress,
-        easeInQuad: (progress) => progress * progress,
-        easeOutQuad: (progress) => progress * (2 - progress),
-        easeInOutQuad: (progress) =>
-            progress < 0.5
-                ? 2 * progress * progress
-                : -1 + (4 - 2 * progress) * progress,
-        easeInCubic: (progress) => progress * progress * progress,
-        easeOutCubic: (progress) => 1 - (1 - progress) ** 3,
-    };
-
-function resolveEasing(
-    easing: Live2DModelTransitionEasing | undefined,
-): Live2DModelTransitionEasingFunction {
-    if (!easing) {
-        return easingPresets.linear;
-    }
-
-    if (typeof easing === "function") {
-        return easing;
-    }
-
-    return easingPresets[easing] ?? easingPresets.linear;
-}
 
 function mergeTransitionDefinition(
     base: Live2DModelTransitionDefinition | undefined,
@@ -426,10 +380,6 @@ function buildParameterTransitionValues(
     }
 
     return values;
-}
-
-function lerp(from: number, to: number, progress: number): number {
-    return from + (to - from) * progress;
 }
 
 export type Live2DConstructor = { new (options?: Live2DModelOptions): Live2DModel };
