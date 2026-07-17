@@ -12,19 +12,20 @@ jobs:
       # allows npm trusted publishing via OIDC, no NPM_TOKEN needed
       id-token: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           submodules: true
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
       # do NOT set registry-url here: it writes an empty _authToken into
       # .npmrc, which overrides OIDC trusted publishing
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: "pnpm"
 
-      # npm >= 11.5.1 is required for OIDC trusted publishing; Node 22 ships npm 10
+      # npm >= 11.5.1 is required for OIDC trusted publishing; keep the
+      # upgrade step in case the runner's bundled npm falls behind
       - run: npm install -g npm@latest
 
       - run: pnpm install --frozen-lockfile
