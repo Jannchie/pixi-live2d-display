@@ -335,7 +335,17 @@ export class Cubism4InternalModel extends InternalModel {
         array[13] = matrix.ty;
 
         this.renderer.setMvpMatrix(tempMatrix);
-        this.renderer.setRenderState(gl.getParameter(gl.FRAMEBUFFER_BINDING), this.viewport);
+
+        // gl.getParameter is a synchronous CPU-GPU round trip, so prefer the
+        // framebuffer tracked by Live2DModel and only query GL when unknown
+        const framebuffer =
+            this.boundFramebuffer !== undefined
+                ? this.boundFramebuffer
+                : (gl.getParameter(gl.FRAMEBUFFER_BINDING) as WebGLFramebuffer | null);
+
+        // the framework signature doesn't accept null, but null is a valid value
+        // for gl.bindFramebuffer (the default framebuffer), which is where it ends up
+        this.renderer.setRenderState(framebuffer as WebGLFramebuffer, this.viewport);
         this.renderer.drawModel();
     }
 

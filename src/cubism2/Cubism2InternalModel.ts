@@ -366,8 +366,15 @@ export class Cubism2InternalModel extends InternalModel {
     draw(gl: WebGLRenderingContext): void {
         const disableCulling = this.disableCulling;
 
-        // culling must be disabled to get this cubism2 model drawn properly on a framebuffer
-        if (gl.getParameter(gl.FRAMEBUFFER_BINDING)) {
+        // culling must be disabled to get this cubism2 model drawn properly on a framebuffer.
+        // gl.getParameter is a synchronous CPU-GPU round trip, so prefer the framebuffer
+        // tracked by Live2DModel and only query GL when unknown
+        const framebuffer =
+            this.boundFramebuffer !== undefined
+                ? this.boundFramebuffer
+                : (gl.getParameter(gl.FRAMEBUFFER_BINDING) as WebGLFramebuffer | null);
+
+        if (framebuffer) {
             this.disableCulling = true;
         }
 

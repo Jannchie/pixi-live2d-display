@@ -170,6 +170,8 @@ type Live2DModelResolvedWindPhysics = Required<Live2DModelWindPhysics>;
 
 const tempPoint = new Point();
 const tempMatrix = new Matrix();
+// reused when the renderer exposes no projection matrix, to avoid a per-frame allocation
+const fallbackProjection = new Matrix();
 
 type Live2DModelTransitionEasingFunction = (progress: number) => number;
 
@@ -611,6 +613,40 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
      */
     private isWebGLRenderer(renderer: Renderer): renderer is WebGLRenderer {
         return 'gl' in renderer && renderer.gl instanceof WebGL2RenderingContext;
+    }
+
+    /**
+     * Resolves the framebuffer currently bound by Pixi's render target system,
+     * mirroring the value Pixi itself binds in its GL render target adaptor
+     * (`null` for the canvas). Returns `undefined` when it cannot be determined,
+     * in which case InternalModel.draw() falls back to querying GL directly.
+     */
+    private resolveBoundFramebuffer(renderer: WebGLRenderer): WebGLFramebuffer | null | undefined {
+        try {
+            // these are semi-private Pixi v8 internals, hence the feature detection
+            const renderTargetSystem = renderer.renderTarget as unknown as {
+                renderTarget?: object;
+                getGpuRenderTarget?: (renderTarget: object) => { framebuffer?: unknown };
+            };
+            const renderTarget = renderTargetSystem?.renderTarget;
+
+            if (renderTarget && typeof renderTargetSystem.getGpuRenderTarget === "function") {
+                const framebuffer =
+                    renderTargetSystem.getGpuRenderTarget(renderTarget)?.framebuffer;
+
+                if (framebuffer === null || framebuffer === undefined) {
+                    // canvas target: Pixi binds the default framebuffer
+                    return null;
+                }
+                if (framebuffer instanceof WebGLFramebuffer) {
+                    return framebuffer;
+                }
+            }
+        } catch {
+            // fall through to unknown
+        }
+
+        return undefined;
     }
 
     // TODO: rename
@@ -1544,124 +1580,123 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
             return;
         }
         
-        try {
-            // In PixiJS v8, the batch/geometry/shader/state reset methods have been removed
-            // These were used to reset renderer state, but v8's architecture no longer needs this
+        // In PixiJS v8, the batch/geometry/shader/state reset methods have been removed
+        // These were used to reset renderer state, but v8's architecture no longer needs this
 
-            let shouldUpdateTexture = false;
+        let shouldUpdateTexture = false;
 
-            // when the WebGL context has changed
-            // In PixiJS v8, use a simple hash of the GL context as UID
-            const contextUID = this._getContextUID(webglRenderer.gl);
-            if (this.glContextID !== contextUID) {
-                this.glContextID = contextUID;
-                
-                if (this.isReady()){
-                    this.internalModel.updateWebGLContext(webglRenderer.gl, this.glContextID);
-                }
+        // when the WebGL context has changed
+        // In PixiJS v8, use a simple hash of the GL context as UID
+        const contextUID = this._getContextUID(webglRenderer.gl);
+        if (this.glContextID !== contextUID) {
+            this.glContextID = contextUID;
 
-                shouldUpdateTexture = true;
+            if (this.isReady()){
+                this.internalModel.updateWebGLContext(webglRenderer.gl, this.glContextID);
             }
 
-            if (this.forceTextureUpdate) {
-                this.forceTextureUpdate = false;
-                shouldUpdateTexture = true;
+            shouldUpdateTexture = true;
+        }
+
+        if (this.forceTextureUpdate) {
+            this.forceTextureUpdate = false;
+            shouldUpdateTexture = true;
+        }
+
+        if (shouldUpdateTexture) {
+            this.cachedGlTextures.length = 0;
+        }
+
+        let flipYModified = false;
+
+        for (let i = 0; i < this.textures.length; i++) {
+            const texture = this.textures[i]!;
+
+            // In v8, texture.valid doesn't exist, check if texture has a valid source
+            if (!texture.source) {
+                continue;
             }
 
-            if (shouldUpdateTexture) {
-                this.cachedGlTextures.length = 0;
-            }
+            let glTexture = this.cachedGlTextures[i] ?? null;
 
-            let flipYModified = false;
+            if (!glTexture) {
+                // bind the WebGLTexture into Live2D core.
+                // In v8, get the actual WebGL texture object
+                glTexture = this.extractWebGLTexture(webglRenderer, texture);
+                this.cachedGlTextures[i] = glTexture;
 
-            for (let i = 0; i < this.textures.length; i++) {
-                const texture = this.textures[i]!;
-
-                // In v8, texture.valid doesn't exist, check if texture has a valid source
-                if (!texture.source) {
-                    continue;
-                }
-
-                let glTexture = this.cachedGlTextures[i] ?? null;
-
-                if (!glTexture) {
-                    // bind the WebGLTexture into Live2D core.
-                    // In v8, get the actual WebGL texture object
-                    glTexture = this.extractWebGLTexture(webglRenderer, texture);
-                    this.cachedGlTextures[i] = glTexture;
-
-                    // Set texture flip state right before binding a freshly extracted texture
-                    if (this.isWebGLTexture(glTexture) && this.internalModel) {
-                        webglRenderer.gl.pixelStorei(
-                            WebGLRenderingContext.UNPACK_FLIP_Y_WEBGL,
-                            this.internalModel.textureFlipY,
-                        );
-                        flipYModified = true;
-                    }
-                }
-
+                // Set texture flip state right before binding a freshly extracted texture
                 if (this.isWebGLTexture(glTexture) && this.internalModel) {
-                    this.internalModel.bindTexture(i, glTexture);
-                }
-
-                // manually update the GC counter in v8
-                if (webglRenderer.textureGC?.count && texture.source) {
-                    (texture.source as any).touched = webglRenderer.textureGC.count;
+                    webglRenderer.gl.pixelStorei(
+                        WebGLRenderingContext.UNPACK_FLIP_Y_WEBGL,
+                        this.internalModel.textureFlipY,
+                    );
+                    flipYModified = true;
                 }
             }
 
-            // Reset GL state after texture binding to avoid affecting other textures
-            if (flipYModified) {
-                webglRenderer.gl.pixelStorei(
-                    WebGLRenderingContext.UNPACK_FLIP_Y_WEBGL,
-                    false,
-                );
+            if (this.isWebGLTexture(glTexture) && this.internalModel) {
+                this.internalModel.bindTexture(i, glTexture);
             }
 
-            // In Pixi.js v8, framebuffer structure has changed
-            // Use renderer dimensions directly
-            const viewport = {
-                x: 0,
-                y: 0,
-                width: webglRenderer.width || webglRenderer.screen?.width || 800,
-                height: webglRenderer.height || webglRenderer.screen?.height || 600
-            };
-            
-            if (this.internalModel) {
-                this.internalModel.viewport = [viewport.x, viewport.y, viewport.width, viewport.height];
+            // manually update the GC counter in v8
+            if (webglRenderer.textureGC?.count && texture.source) {
+                (texture.source as any).touched = webglRenderer.textureGC.count;
+            }
+        }
 
+        // Reset GL state after texture binding to avoid affecting other textures
+        if (flipYModified) {
+            webglRenderer.gl.pixelStorei(
+                WebGLRenderingContext.UNPACK_FLIP_Y_WEBGL,
+                false,
+            );
+        }
+
+        // In v8, ensure worldTransform is properly calculated
+        const worldTransform = this.worldTransform || this.groupTransform || this.localTransform;
+
+        // In PixiJS v8, we need to use the renderer's globalUniforms
+        let projectionMatrix;
+        if (webglRenderer.globalUniforms && 'projectionMatrix' in webglRenderer.globalUniforms) {
+            projectionMatrix = (webglRenderer.globalUniforms as any).projectionMatrix;
+        } else {
+            // Fallback: a basic projection matrix using renderer screen dimensions
+            const { width, height } = webglRenderer.screen;
+            projectionMatrix = fallbackProjection.set(2 / width, 0, 0, -2 / height, -1, 1);
+        }
+
+        const internalTransform = tempMatrix
+            .copyFrom(projectionMatrix)
+            .append(worldTransform);
+
+        if (this.internalModel) {
+            const internalModel = this.internalModel;
+
+            // mutate the viewport tuple in place to avoid a per-frame allocation
+            const viewport = internalModel.viewport;
+            viewport[0] = 0;
+            viewport[1] = 0;
+            viewport[2] = webglRenderer.width || webglRenderer.screen?.width || 800;
+            viewport[3] = webglRenderer.height || webglRenderer.screen?.height || 600;
+
+            internalModel.boundFramebuffer = this.resolveBoundFramebuffer(webglRenderer);
+
+            // the Live2D core calls below can throw; keep them guarded so a broken
+            // frame doesn't kill Pixi's render loop, but keep the rest of the hot
+            // path (texture binding, matrix math) outside the try/catch
+            try {
                 // update only if the time has changed, as the model will possibly be updated once but rendered multiple times
                 if (this.deltaTime) {
-                    this.internalModel.update(this.deltaTime, this.elapsedTime);
+                    internalModel.update(this.deltaTime, this.elapsedTime);
                     this.deltaTime = 0;
                 }
-            }
 
-            // In v8, ensure worldTransform is properly calculated
-            const worldTransform = this.worldTransform || this.groupTransform || this.localTransform;
-            
-            // In PixiJS v8, we need to use the renderer's globalUniforms
-            let projectionMatrix;
-            if (webglRenderer.globalUniforms && 'projectionMatrix' in webglRenderer.globalUniforms) {
-                projectionMatrix = (webglRenderer.globalUniforms as any).projectionMatrix;
-            } else {
-                // Fallback: create a basic projection matrix using renderer screen dimensions
-                projectionMatrix = new Matrix();
-                const { width, height } = webglRenderer.screen;
-                projectionMatrix.set(2 / width, 0, 0, -2 / height, -1, 1);
+                internalModel.updateTransform(internalTransform);
+                internalModel.draw(webglRenderer.gl);
+            } catch (error) {
+                console.error("Error in Live2D render callback:", error);
             }
-            
-            const internalTransform = tempMatrix
-                .copyFrom(projectionMatrix)
-                .append(worldTransform);
-            
-            if (this.internalModel) {
-                this.internalModel.updateTransform(internalTransform);
-                this.internalModel.draw(webglRenderer.gl);
-            }
-            
-        } catch (error) {
-            console.error("Error in Live2D render callback:", error);
         }
     }
 

@@ -118,6 +118,13 @@ export abstract class InternalModel extends EventEmitter {
     viewport: [number, number, number, number] = [0, 0, 0, 0];
 
     /**
+     * The framebuffer currently bound by the renderer, set by Live2DModel before drawing.
+     * `undefined` means unknown, in which case `draw()` falls back to querying it
+     * from the GL context (a synchronous CPU-GPU round trip).
+     */
+    boundFramebuffer: WebGLFramebuffer | null | undefined = undefined;
+
+    /**
      * Flags this instance has been destroyed.
      */
     destroyed = false;
