@@ -1,41 +1,6 @@
-import { FocusController } from "@/cubism-common/FocusController";
 import { Live2DModel } from "@/Live2DModel";
-import { EventEmitter } from "pixi.js";
 import { expect, test } from "vitest";
-
-class StubInternalModel extends EventEmitter {
-    coreModel: {
-        getParameterValueById: (parameterId: string) => number;
-        setParameterValueById: (parameterId: string, value: number) => void;
-    };
-    focusController = new FocusController();
-    windOptions = { wind: { x: 0, y: 0 } };
-    physics = {
-        getOption: () => this.windOptions,
-        setOptions: (options: { wind: { x: number; y: number } }) => {
-            this.windOptions = { wind: { x: options.wind.x, y: options.wind.y } };
-        },
-    };
-    settings = { name: "stub" };
-    params: Record<string, number> = {};
-
-    constructor() {
-        super();
-
-        this.coreModel = {
-            getParameterValueById: (parameterId: string) => this.params[parameterId] ?? 0,
-            setParameterValueById: (parameterId: string, value: number) => {
-                this.params[parameterId] = value;
-            },
-        };
-    }
-}
-
-const baseOptions = {
-    autoUpdate: false,
-    autoHitTest: false,
-    autoFocus: false,
-};
+import { StubInternalModel, baseOptions } from "./stubs";
 
 test("transitionParametersTo applies values during beforeModelUpdate", () => {
     const model = new Live2DModel(baseOptions);
