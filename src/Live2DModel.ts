@@ -818,10 +818,16 @@ export class Live2DModel<IM extends InternalModel = InternalModel> extends Conta
 
             // mutate the viewport tuple in place to avoid a per-frame allocation
             const viewport = internalModel.viewport;
+            // The Cubism core issues raw gl.viewport() calls in device pixels. In
+            // PixiJS v8 renderer.width/height (and screen) are LOGICAL pixels —
+            // unlike v7, where they matched the device-pixel drawing buffer — so
+            // scale by the renderer resolution. Without this the model is squeezed
+            // into a 1/resolution corner of the canvas on HiDPI/retina displays.
+            const resolution = webglRenderer.resolution || 1;
             viewport[0] = 0;
             viewport[1] = 0;
-            viewport[2] = webglRenderer.width || webglRenderer.screen?.width || 800;
-            viewport[3] = webglRenderer.height || webglRenderer.screen?.height || 600;
+            viewport[2] = (webglRenderer.width || webglRenderer.screen?.width || 800) * resolution;
+            viewport[3] = (webglRenderer.height || webglRenderer.screen?.height || 600) * resolution;
 
             internalModel.boundFramebuffer = this.resolveBoundFramebuffer(webglRenderer);
 
